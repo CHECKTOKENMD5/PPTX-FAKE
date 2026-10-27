@@ -1,0 +1,2792 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Bài giảng: Cảm ứng điện từ &amp; Dòng điện xoay chiều</title>
+<style>
+/* ============================================================
+   1. DESIGN TOKENS
+   ============================================================ */
+:root{
+  --navy:#07152E;
+  --blue:#123D8D;
+  --cyan:#35D9FF;
+  --purple:#8957FF;
+  --pink:#FF4FCB;
+  --yellow:#FFD166;
+  --green:#4AE68B;
+  --white:#FFFFFF;
+  --light:#F5F8FF;
+
+  --bg:#07152E;
+  --bg2:#0B1F42;
+  --fg:#EAF2FF;
+  --muted:#9BB3D4;
+  --card:rgba(255,255,255,.055);
+  --card-b:rgba(255,255,255,.13);
+  --shadow:0 18px 50px -18px rgba(0,0,0,.75);
+  --fs:1;
+  --dur:.55s;
+}
+[data-theme="light"]{
+  --bg:#F5F8FF;
+  --bg2:#E7EEFF;
+  --fg:#07152E;
+  --muted:#4A5B77;
+  --card:rgba(7,21,46,.045);
+  --card-b:rgba(7,21,46,.12);
+  --shadow:0 18px 50px -22px rgba(7,21,46,.35);
+}
+
+/* ============================================================
+   2. RESET & BASE
+   ============================================================ */
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,"Noto Sans",sans-serif;
+  background:var(--bg);
+  color:var(--fg);
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+button{font-family:inherit;color:inherit;background:none;border:none;cursor:pointer}
+input,select,textarea{font-family:inherit}
+::selection{background:var(--cyan);color:#04101f}
+
+/* ============================================================
+   3. BACKGROUND
+   ============================================================ */
+#bgfx{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+#bgfx .grad{
+  position:absolute;inset:-20%;
+  background:
+    radial-gradient(45% 45% at 18% 12%, rgba(53,217,255,.20), transparent 65%),
+    radial-gradient(42% 42% at 82% 18%, rgba(137,87,255,.20), transparent 65%),
+    radial-gradient(50% 50% at 70% 88%, rgba(255,79,203,.14), transparent 68%),
+    radial-gradient(55% 55% at 12% 82%, rgba(18,61,141,.55), transparent 70%),
+    linear-gradient(160deg,var(--bg) 0%,var(--bg2) 55%,var(--bg) 100%);
+  animation:gradShift 26s ease-in-out infinite alternate;
+}
+[data-theme="light"] #bgfx .grad{
+  background:
+    radial-gradient(45% 45% at 18% 12%, rgba(53,217,255,.30), transparent 65%),
+    radial-gradient(42% 42% at 82% 18%, rgba(137,87,255,.22), transparent 65%),
+    radial-gradient(50% 50% at 70% 88%, rgba(255,79,203,.16), transparent 68%),
+    linear-gradient(160deg,#F5F8FF 0%,#E6EEFF 55%,#F5F8FF 100%);
+}
+@keyframes gradShift{
+  0%{transform:scale(1) translate(0,0)}
+  100%{transform:scale(1.08) translate(-1.5%,1.5%)}
+}
+#bgfx .grid{
+  position:absolute;inset:0;
+  background-image:
+    linear-gradient(rgba(53,217,255,.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(53,217,255,.055) 1px, transparent 1px);
+  background-size:56px 56px;
+  mask-image:radial-gradient(70% 70% at 50% 45%, #000 25%, transparent 100%);
+  -webkit-mask-image:radial-gradient(70% 70% at 50% 45%, #000 25%, transparent 100%);
+}
+#bgfx .orbs{position:absolute;inset:0}
+#bgfx .orb{
+  position:absolute;border-radius:50%;filter:blur(46px);opacity:.42;
+  animation:float 15s ease-in-out infinite alternate;
+}
+#bgfx .orb.a{width:34vw;height:34vw;left:-8vw;top:-8vw;background:rgba(53,217,255,.55)}
+#bgfx .orb.b{width:28vw;height:28vw;right:-6vw;top:12vh;background:rgba(137,87,255,.50);animation-delay:-5s}
+#bgfx .orb.c{width:26vw;height:26vw;left:32vw;bottom:-12vh;background:rgba(255,79,203,.38);animation-delay:-9s}
+@keyframes float{from{transform:translate(0,0) scale(1)}to{transform:translate(3vw,-2vh) scale(1.12)}}
+
+body.no-fx #bgfx .orb,
+body.no-fx #bgfx .grad{animation:none!important}
+body.no-fx .reveal{opacity:1!important;transform:none!important;filter:none!important}
+@media (prefers-reduced-motion:reduce){
+  #bgfx .orb,#bgfx .grad{animation:none!important}
+}
+
+/* ============================================================
+   4. STAGE & SLIDES
+   ============================================================ */
+#stage{
+  position:fixed;inset:0;z-index:2;
+  font-size:calc(clamp(14px,1.05vw + 6px,19px) * var(--fs));
+}
+.slide{
+  position:absolute;inset:0;
+  padding:clamp(22px,4.2vh,62px) clamp(20px,4.6vw,86px) clamp(76px,9vh,120px);
+  display:flex;flex-direction:column;
+  opacity:0;visibility:hidden;pointer-events:none;
+  transition:opacity var(--dur) ease, transform var(--dur) ease, visibility 0s linear var(--dur);
+  transform:translateY(14px);
+  overflow:hidden;
+}
+.slide.active{
+  opacity:1;visibility:visible;pointer-events:auto;
+  transform:none;
+  transition:opacity var(--dur) ease, transform var(--dur) ease, visibility 0s;
+}
+body.tx-slide .slide{transform:translateX(60px)}
+body.tx-slide .slide.active{transform:none}
+body.tx-zoom .slide{transform:scale(.94)}
+body.tx-zoom .slide.active{transform:scale(1)}
+body.tx-flip .slide{transform:perspective(1400px) rotateY(14deg)}
+body.tx-flip .slide.active{transform:perspective(1400px) rotateY(0)}
+body.tx-push .slide{transform:translateY(40px) scale(.97)}
+body.tx-push .slide.active{transform:none}
+
+.slide-body{flex:1;display:flex;flex-direction:column;justify-content:center;min-height:0;gap:.85em}
+.slide.center .slide-body{align-items:center;text-align:center}
+
+h1.slide-title{
+  font-size:2.15em;font-weight:800;letter-spacing:-.02em;line-height:1.12;
+  background:linear-gradient(100deg,var(--cyan),var(--purple) 55%,var(--pink));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+h2.slide-h2{
+  font-size:1.55em;font-weight:800;letter-spacing:-.015em;line-height:1.2;
+  display:flex;align-items:center;gap:.55em;margin-bottom:.15em;
+}
+h2.slide-h2::before{
+  content:"";width:.22em;height:1.05em;border-radius:99px;flex:none;
+  background:linear-gradient(180deg,var(--cyan),var(--purple));
+  box-shadow:0 0 18px rgba(53,217,255,.75);
+}
+.eyebrow{
+  font-size:.78em;font-weight:800;letter-spacing:.24em;text-transform:uppercase;
+  color:var(--cyan);opacity:.95;
+}
+.lead{font-size:1.05em;color:var(--muted);line-height:1.6;max-width:62ch}
+.sub{font-size:.92em;color:var(--muted);line-height:1.55}
+
+/* ============================================================
+   5. COMPONENTS
+   ============================================================ */
+.card{
+  background:var(--card);
+  border:1px solid var(--card-b);
+  border-radius:1.1em;
+  padding:1em 1.15em;
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+  box-shadow:var(--shadow);
+  transition:transform .3s cubic-bezier(.22,1,.36,1), border-color .3s, box-shadow .3s;
+  position:relative;overflow:hidden;
+}
+.card:hover{transform:translateY(-4px);border-color:rgba(53,217,255,.45)}
+.card.glow{box-shadow:0 0 0 1px rgba(53,217,255,.28), 0 18px 50px -18px rgba(53,217,255,.35)}
+.card h3{font-size:1.02em;font-weight:800;margin-bottom:.4em;display:flex;align-items:center;gap:.5em}
+.card p{font-size:.9em;line-height:1.55;color:var(--muted)}
+.card ul{font-size:.9em;line-height:1.6;color:var(--muted);padding-left:1.15em}
+.card ul li{margin:.18em 0}
+
+.chip{
+  display:inline-flex;align-items:center;gap:.42em;
+  padding:.34em .8em;border-radius:99px;font-size:.78em;font-weight:700;
+  background:rgba(53,217,255,.12);border:1px solid rgba(53,217,255,.35);color:var(--cyan);
+}
+.chip.p{background:rgba(137,87,255,.14);border-color:rgba(137,87,255,.4);color:#C6AEFF}
+.chip.k{background:rgba(255,79,203,.12);border-color:rgba(255,79,203,.35);color:#FFA8E4}
+.chip.y{background:rgba(255,209,102,.13);border-color:rgba(255,209,102,.38);color:var(--yellow)}
+.chip.g{background:rgba(74,230,139,.12);border-color:rgba(74,230,139,.38);color:var(--green)}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:1em}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:.9em}
+.grid2.aa{grid-template-columns:1.05fr .95fr;align-items:center;gap:1.6em}
+
+.formula{
+  font-size:1.12em;font-weight:700;
+  padding:.75em 1.05em;border-radius:.8em;
+  background:linear-gradient(120deg, rgba(53,217,255,.10), rgba(137,87,255,.10));
+  border:1px solid rgba(53,217,255,.28);
+  display:inline-flex;align-items:center;gap:.35em;flex-wrap:wrap;
+  line-height:1.9;
+  box-shadow:0 0 32px -14px rgba(53,217,255,.55) inset;
+}
+.formula.big{font-size:1.42em}
+.formula.center{justify-content:center}
+.formula .var{color:var(--yellow)}
+.formula .op{color:var(--muted);font-weight:500}
+.frac{
+  display:inline-flex;flex-direction:column;vertical-align:middle;
+  text-align:center;font-size:.82em;line-height:1.08;margin:0 .18em;
+}
+.frac .num{border-bottom:1.6px solid currentColor;padding:0 .3em .06em}
+.frac .den{padding:.06em .3em 0}
+
+.note{
+  border-left:3px solid var(--yellow);
+  background:rgba(255,209,102,.08);
+  border-radius:.5em;padding:.6em .9em;font-size:.88em;line-height:1.55;color:var(--fg);
+}
+.note.warn{border-color:var(--pink);background:rgba(255,79,203,.08)}
+.note.ok{border-color:var(--cyan);background:rgba(53,217,255,.08)}
+.note.green{border-color:var(--green);background:rgba(74,230,139,.08)}
+
+ul.steps{list-style:none;font-size:.95em;line-height:1.6;counter-reset:step}
+ul.steps li{
+  position:relative;padding-left:2em;margin:.5em 0;color:var(--muted);
+}
+ul.steps li::before{
+  content:counter(step);counter-increment:step;
+  position:absolute;left:0;top:.05em;
+  width:1.45em;height:1.45em;border-radius:50%;
+  display:grid;place-items:center;font-size:.78em;font-weight:800;color:#04101f;
+  background:linear-gradient(140deg,var(--cyan),var(--purple));
+}
+
+.cover-badge{
+  display:inline-flex;align-items:center;gap:.6em;
+  padding:.5em 1.05em;border-radius:99px;
+  background:rgba(53,217,255,.1);border:1px solid rgba(53,217,255,.35);
+  font-size:.82em;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--cyan);
+}
+.cover-title{
+  font-size:clamp(2.1em,4.6vw,3.6em);font-weight:900;line-height:1.06;letter-spacing:-.03em;
+  background:linear-gradient(102deg,#FFFFFF 4%,var(--cyan) 32%,var(--purple) 62%,var(--pink) 92%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  margin:.35em 0 .28em;
+  filter:drop-shadow(0 8px 34px rgba(53,217,255,.28));
+}
+[data-theme="light"] .cover-title{
+  background:linear-gradient(102deg,#07152E 4%,#123D8D 34%,#8957FF 66%,#FF4FCB 94%);
+  -webkit-background-clip:text;background-clip:text;
+}
+.cover-sub{font-size:1.1em;color:var(--muted);letter-spacing:.02em}
+
+.section-num{
+  font-size:clamp(4em,12vw,9em);font-weight:900;line-height:.85;
+  background:linear-gradient(160deg,var(--cyan),var(--purple));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  opacity:.9;
+}
+
+.roadmap{display:grid;grid-template-columns:repeat(4,1fr);gap:.85em}
+.road-item{
+  border-radius:.9em;padding:.85em .9em;
+  background:var(--card);border:1px solid var(--card-b);
+  display:flex;flex-direction:column;gap:.35em;
+  transition:transform .3s,border-color .3s;
+}
+.road-item:hover{transform:translateY(-4px);border-color:rgba(53,217,255,.5)}
+.road-item .n{font-size:.72em;font-weight:900;letter-spacing:.14em;color:var(--cyan)}
+.road-item .t{font-size:.92em;font-weight:700;line-height:1.3}
+.road-item .d{font-size:.76em;color:var(--muted);line-height:1.4}
+
+table.cmp{width:100%;border-collapse:separate;border-spacing:0;font-size:.86em}
+table.cmp th,table.cmp td{padding:.62em .8em;text-align:left;border-bottom:1px solid var(--card-b)}
+table.cmp th{font-weight:800;color:var(--fg);font-size:.92em;background:rgba(53,217,255,.07)}
+table.cmp td{color:var(--muted)}
+table.cmp tr:last-child td{border-bottom:none}
+
+/* Quiz */
+.quiz{display:flex;flex-direction:column;gap:.55em}
+.quiz-q{font-size:1.02em;font-weight:700;line-height:1.5;margin-bottom:.25em}
+.quiz-opt{
+  display:flex;align-items:flex-start;gap:.7em;
+  padding:.68em .9em;border-radius:.7em;font-size:.9em;line-height:1.45;
+  background:var(--card);border:1px solid var(--card-b);
+  transition:all .25s;text-align:left;width:100%;color:var(--fg);
+}
+.quiz-opt:hover:not(.done){border-color:rgba(53,217,255,.55);transform:translateX(3px)}
+.quiz-opt .k{
+  flex:none;width:1.6em;height:1.6em;border-radius:50%;
+  display:grid;place-items:center;font-size:.82em;font-weight:800;
+  background:rgba(255,255,255,.1);border:1px solid var(--card-b);
+}
+.quiz-opt.correct{border-color:rgba(74,230,139,.8);background:rgba(74,230,139,.15);box-shadow:0 0 26px -8px rgba(74,230,139,.7)}
+.quiz-opt.correct .k{background:var(--green);color:#04101f;border-color:var(--green)}
+.quiz-opt.wrong{border-color:rgba(255,79,203,.8);background:rgba(255,79,203,.13)}
+.quiz-opt.wrong .k{background:var(--pink);color:#2a0018;border-color:var(--pink)}
+.quiz-exp{
+  font-size:.84em;line-height:1.55;color:var(--muted);
+  padding:.6em .9em;border-radius:.6em;margin-top:.2em;
+  background:rgba(53,217,255,.07);border-left:3px solid var(--cyan);
+  display:none;
+}
+.quiz-exp.show{display:block;animation:fadeUp .4s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* Video slide */
+.video-card{
+  position:relative;width:100%;aspect-ratio:16/9;
+  border-radius:1em;overflow:hidden;
+  background:linear-gradient(135deg,#0a1a35,#0f2452);
+  border:1px solid rgba(53,217,255,.35);
+  box-shadow:0 24px 60px -20px rgba(0,0,0,.8), 0 0 0 1px rgba(53,217,255,.12) inset;
+  cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:transform .3s, border-color .3s;
+}
+.video-card:hover{transform:scale(1.01);border-color:rgba(53,217,255,.65)}
+.video-card .play-btn{
+  width:88px;height:88px;border-radius:50%;
+  background:linear-gradient(140deg,var(--pink),var(--purple));
+  display:grid;place-items:center;
+  box-shadow:0 16px 46px -10px rgba(255,79,203,.7), 0 0 0 8px rgba(255,79,203,.14);
+  transition:transform .3s;
+}
+.video-card:hover .play-btn{transform:scale(1.08)}
+.video-card .play-btn svg{width:38px;height:38px;fill:#fff;margin-left:5px}
+.video-card .vlabel{
+  position:absolute;bottom:16px;left:20px;right:20px;
+  display:flex;justify-content:space-between;align-items:center;gap:1em;
+  font-size:.85em;color:#fff;
+}
+.video-card .vlabel .tag{
+  padding:.25em .7em;border-radius:99px;font-size:.75em;font-weight:800;
+  background:rgba(255,79,203,.9);color:#fff;letter-spacing:.05em;
+}
+.video-card .vthumb{
+  position:absolute;inset:0;
+  background:radial-gradient(60% 60% at 50% 50%, rgba(53,217,255,.12), transparent 70%),
+             repeating-linear-gradient(45deg, rgba(53,217,255,.05) 0 20px, transparent 20px 40px);
+  z-index:0;
+}
+.video-card .vlabel, .video-card .play-btn{position:relative;z-index:1}
+
+.video-frame{
+  position:relative;width:100%;aspect-ratio:16/9;
+  border-radius:1em;overflow:hidden;
+  background:#000;border:1px solid var(--card-b);
+  box-shadow:0 24px 60px -20px rgba(0,0,0,.8);
+}
+.video-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:none}
+.video-alt{
+  display:flex;gap:.6em;flex-wrap:wrap;margin-top:.6em;
+  font-size:.82em;
+}
+.video-alt a{
+  display:inline-flex;align-items:center;gap:.35em;
+  padding:.4em .85em;border-radius:.55em;
+  background:rgba(53,217,255,.1);border:1px solid rgba(53,217,255,.32);
+  color:var(--cyan);text-decoration:none;font-weight:700;
+  transition:all .2s;
+}
+.video-alt a:hover{background:rgba(53,217,255,.22);transform:translateY(-1px)}
+
+/* Video modal */
+#videoModal{
+  position:fixed;inset:0;z-index:200;
+  background:rgba(2,8,20,.88);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;visibility:hidden;transition:opacity .3s, visibility .3s;
+  padding:24px;
+}
+#videoModal.open{opacity:1;visibility:visible}
+#videoModal .modal-content{
+  position:relative;width:min(1100px,100%);
+  background:#000;border-radius:1.1em;overflow:hidden;
+  border:1px solid rgba(53,217,255,.4);
+  box-shadow:0 30px 90px -20px rgba(0,0,0,.9);
+  transform:scale(.95);transition:transform .35s cubic-bezier(.22,1,.36,1);
+}
+#videoModal.open .modal-content{transform:scale(1)}
+#videoModal .modal-frame{
+  position:relative;width:100%;aspect-ratio:16/9;background:#000;
+}
+#videoModal .modal-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:none}
+#videoModal .modal-close{
+  position:absolute;top:-2px;right:-2px;
+  width:44px;height:44px;border-radius:50%;
+  background:rgba(255,255,255,.12);color:#fff;font-size:22px;
+  display:grid;place-items:center;z-index:3;
+  transition:background .2s;
+}
+#videoModal .modal-close:hover{background:rgba(255,79,203,.8)}
+#videoModal .modal-footer{
+  padding:.85em 1.2em;display:flex;justify-content:space-between;align-items:center;gap:1em;flex-wrap:wrap;
+  font-size:.82em;color:#9BB3D4;
+}
+#videoModal .modal-footer a{
+  color:#35D9FF;text-decoration:none;font-weight:700;
+}
+#videoModal .modal-footer a:hover{text-decoration:underline}
+
+/* Sim canvas */
+.sim-canvas-box{
+  position:relative;width:100%;flex:1 1 auto;min-height:0;
+  border-radius:.9em;overflow:hidden;
+  background:rgba(0,0,0,.22);border:1px solid var(--card-b);
+}
+[data-theme="light"] .sim-canvas-box{background:rgba(255,255,255,.6)}
+.sim-canvas-box canvas{display:block;width:100%;height:100%}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.6em .9em}
+.ctrl{display:flex;flex-direction:column;gap:.22em}
+.ctrl label{font-size:.74em;font-weight:700;color:var(--muted);display:flex;justify-content:space-between;gap:.5em}
+.ctrl label b{color:var(--cyan);font-variant-numeric:tabular-nums}
+input[type="range"]{
+  -webkit-appearance:none;appearance:none;width:100%;height:5px;border-radius:99px;
+  background:linear-gradient(90deg,var(--cyan),var(--purple));outline:none;cursor:pointer;
+}
+input[type="range"]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:15px;height:15px;border-radius:50%;
+  background:#fff;border:2px solid var(--cyan);box-shadow:0 0 12px rgba(53,217,255,.8);cursor:pointer;
+}
+input[type="range"]::-moz-range-thumb{
+  width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid var(--cyan);cursor:pointer;
+}
+.btn{
+  display:inline-flex;align-items:center;gap:.45em;justify-content:center;
+  padding:.5em 1em;border-radius:.6em;font-size:.82em;font-weight:700;
+  background:rgba(53,217,255,.13);border:1px solid rgba(53,217,255,.4);color:var(--cyan);
+  transition:all .2s;white-space:nowrap;
+}
+.btn:hover{background:rgba(53,217,255,.24);transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
+.btn.ghost{background:var(--card);border-color:var(--card-b);color:var(--fg)}
+.btn.ghost:hover{border-color:rgba(53,217,255,.5)}
+.btn.sm{padding:.34em .7em;font-size:.75em}
+
+.readout{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:.5em}
+.ro{
+  background:var(--card);border:1px solid var(--card-b);border-radius:.6em;
+  padding:.5em .6em;text-align:center;
+}
+.ro .l{font-size:.68em;color:var(--muted);font-weight:700;letter-spacing:.05em}
+.ro .v{font-size:1.02em;font-weight:800;color:var(--cyan);font-variant-numeric:tabular-nums;margin-top:.1em}
+.ro.state .v{color:var(--yellow)}
+
+/* Reveal system */
+.reveal{
+  opacity:0;transform:translateY(18px);filter:blur(6px);
+  transition:opacity .5s cubic-bezier(.22,1,.36,1),transform .5s cubic-bezier(.22,1,.36,1),filter .5s;
+}
+.reveal.shown{opacity:1;transform:none;filter:blur(0)}
+.reveal.d1{transition-delay:.08s}
+.reveal.d2{transition-delay:.16s}
+.reveal.d3{transition-delay:.24s}
+.reveal.d4{transition-delay:.32s}
+
+.slide.active .stagger > *{animation:staggerIn .55s cubic-bezier(.22,1,.36,1) both}
+.slide.active .stagger > *:nth-child(1){animation-delay:.05s}
+.slide.active .stagger > *:nth-child(2){animation-delay:.12s}
+.slide.active .stagger > *:nth-child(3){animation-delay:.19s}
+.slide.active .stagger > *:nth-child(4){animation-delay:.26s}
+.slide.active .stagger > *:nth-child(5){animation-delay:.33s}
+.slide.active .stagger > *:nth-child(6){animation-delay:.40s}
+@keyframes staggerIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+body.no-fx .stagger > *{animation:none!important}
+
+/* Toolbar */
+#progress{
+  position:fixed;left:0;top:0;height:3px;z-index:60;
+  width:0%;background:linear-gradient(90deg,var(--cyan),var(--purple),var(--pink));
+  box-shadow:0 0 14px rgba(53,217,255,.75);
+  transition:width .35s cubic-bezier(.22,1,.36,1);
+}
+#toolbar{
+  position:fixed;left:50%;bottom:16px;transform:translateX(-50%);
+  z-index:70;display:flex;align-items:center;gap:.35em;
+  padding:.45em .6em;border-radius:99px;
+  background:rgba(7,21,46,.62);border:1px solid rgba(255,255,255,.14);
+  backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);
+  box-shadow:0 16px 44px -14px rgba(0,0,0,.85);
+  transition:opacity .3s, transform .3s;
+  max-width:calc(100vw - 24px);
+}
+[data-theme="light"] #toolbar{background:rgba(255,255,255,.8);border-color:rgba(7,21,46,.12)}
+body.hide-ui #toolbar{opacity:0;transform:translateX(-50%) translateY(24px);pointer-events:none}
+body.hide-ui #topbar{opacity:0;pointer-events:none}
+body.hide-ui #progress{opacity:.25}
+
+.tbtn{
+  width:36px;height:36px;border-radius:50%;
+  display:grid;place-items:center;
+  color:#EAF2FF;transition:all .2s;flex:none;background:transparent;
+}
+[data-theme="light"] .tbtn{color:#123D8D}
+.tbtn:hover{background:rgba(53,217,255,.18);color:var(--cyan)}
+.tbtn.on{background:rgba(53,217,255,.26);color:var(--cyan);box-shadow:0 0 18px -4px rgba(53,217,255,.8)}
+.tbtn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tbtn:disabled{opacity:.3;cursor:not-allowed}
+.tsep{width:1px;height:22px;background:rgba(255,255,255,.16);margin:0 .2em;flex:none}
+[data-theme="light"] .tsep{background:rgba(7,21,46,.14)}
+#counter{
+  font-size:.78em;font-weight:800;font-variant-numeric:tabular-nums;
+  color:#EAF2FF;padding:0 .55em;white-space:nowrap;letter-spacing:.03em;
+}
+[data-theme="light"] #counter{color:#123D8D}
+#counter b{color:var(--cyan)}
+
+#topbar{
+  position:fixed;top:14px;left:20px;right:20px;z-index:60;
+  display:flex;align-items:center;justify-content:space-between;gap:1em;
+  font-size:.76em;color:var(--muted);transition:opacity .3s;
+  pointer-events:none;
+}
+#topbar .brand{display:flex;align-items:center;gap:.5em;font-weight:800;letter-spacing:.06em}
+#topbar .dot{
+  width:8px;height:8px;border-radius:50%;background:var(--cyan);
+  box-shadow:0 0 12px var(--cyan);animation:pulse 2.2s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.75)}}
+#clock{font-variant-numeric:tabular-nums;font-weight:800;color:var(--cyan)}
+.lesson-tag{
+  display:inline-flex;align-items:center;gap:.4em;
+  padding:.25em .7em;border-radius:99px;font-size:.85em;font-weight:800;
+  letter-spacing:.06em;
+}
+.lesson-tag.l1{background:rgba(53,217,255,.15);color:var(--cyan);border:1px solid rgba(53,217,255,.35)}
+.lesson-tag.l2{background:rgba(255,79,203,.15);color:#FFA8E4;border:1px solid rgba(255,79,203,.35)}
+
+/* Sidebar */
+#sidebar{
+  position:fixed;top:0;left:0;bottom:0;width:290px;z-index:80;
+  background:rgba(7,21,46,.92);backdrop-filter:blur(22px);
+  -webkit-backdrop-filter:blur(22px);
+  border-right:1px solid rgba(255,255,255,.12);
+  transform:translateX(-100%);transition:transform .35s cubic-bezier(.22,1,.36,1);
+  display:flex;flex-direction:column;
+}
+[data-theme="light"] #sidebar{background:rgba(245,248,255,.96);border-right-color:rgba(7,21,46,.12)}
+#sidebar.open{transform:none}
+#sidebar .sb-head{
+  padding:16px 18px 12px;font-size:.82em;font-weight:800;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--cyan);display:flex;justify-content:space-between;align-items:center;
+  border-bottom:1px solid rgba(255,255,255,.1);
+}
+[data-theme="light"] #sidebar .sb-head{border-bottom-color:rgba(7,21,46,.1)}
+#thumbs{flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:6px}
+#thumbs::-webkit-scrollbar{width:6px}
+#thumbs::-webkit-scrollbar-thumb{background:rgba(53,217,255,.35);border-radius:99px}
+.thumb{
+  display:flex;align-items:center;gap:.6em;
+  padding:.55em .7em;border-radius:.55em;cursor:pointer;
+  font-size:.78em;line-height:1.3;text-align:left;color:var(--muted);
+  border:1px solid transparent;transition:all .2s;width:100%;
+}
+.thumb:hover{background:rgba(255,255,255,.06);color:var(--fg)}
+.thumb.active{background:rgba(53,217,255,.16);border-color:rgba(53,217,255,.45);color:var(--fg)}
+.thumb .tn{
+  flex:none;width:1.9em;height:1.9em;border-radius:.4em;display:grid;place-items:center;
+  font-weight:800;font-size:.85em;background:rgba(255,255,255,.07);color:var(--cyan);
+}
+.thumb.active .tn{background:var(--cyan);color:#04101f}
+.thumb.l1 .tn{color:var(--cyan)}
+.thumb.l2 .tn{color:#FFA8E4}
+.thumb-sep{
+  font-size:.68em;font-weight:800;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--muted);padding:.8em .4em .3em;border-top:1px solid rgba(255,255,255,.08);margin-top:.3em;
+}
+
+/* Panels */
+.panel{
+  position:fixed;z-index:90;border-radius:1.1em;
+  background:rgba(7,21,46,.94);border:1px solid rgba(255,255,255,.15);
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  box-shadow:0 26px 70px -20px rgba(0,0,0,.9);
+  padding:1.1em 1.2em;color:#EAF2FF;
+  opacity:0;visibility:hidden;transform:translateY(14px) scale(.98);
+  transition:all .28s cubic-bezier(.22,1,.36,1);
+}
+[data-theme="light"] .panel{background:rgba(255,255,255,.97);border-color:rgba(7,21,46,.14);color:#07152E}
+.panel.open{opacity:1;visibility:visible;transform:none}
+.panel h4{
+  font-size:.84em;font-weight:800;letter-spacing:.12em;text-transform:uppercase;
+  color:#35D9FF;margin-bottom:.9em;display:flex;justify-content:space-between;align-items:center;
+}
+.panel .row{display:flex;align-items:center;justify-content:space-between;gap:1em;padding:.5em 0;font-size:.82em}
+.panel .row + .row{border-top:1px solid rgba(255,255,255,.08)}
+[data-theme="light"] .panel .row + .row{border-top-color:rgba(7,21,46,.08)}
+.panel label{color:#9BB3D4}
+[data-theme="light"] .panel label{color:#4A5B77}
+.panel select{
+  background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);
+  color:inherit;border-radius:.4em;padding:.3em .5em;font-size:.92em;cursor:pointer;outline:none;
+}
+[data-theme="light"] .panel select{background:rgba(7,21,46,.06);border-color:rgba(7,21,46,.15)}
+.switch{
+  width:40px;height:22px;border-radius:99px;background:rgba(255,255,255,.15);
+  position:relative;cursor:pointer;transition:background .25s;flex:none;border:none;
+}
+.switch::after{
+  content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;
+  background:#fff;transition:transform .25s cubic-bezier(.22,1,.36,1);
+}
+.switch.on{background:linear-gradient(90deg,var(--cyan),var(--purple))}
+.switch.on::after{transform:translateX(18px)}
+
+#settingsPanel{right:16px;bottom:80px;width:310px;max-height:calc(100vh - 120px);overflow-y:auto}
+#helpPanel{right:16px;bottom:80px;width:380px;max-height:calc(100vh - 120px);overflow-y:auto}
+#helpPanel .kbd{
+  display:inline-block;padding:.14em .45em;border-radius:.32em;font-size:.78em;font-weight:700;
+  background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);
+  font-family:ui-monospace,Consolas,monospace;margin-right:.3em;
+}
+[data-theme="light"] #helpPanel .kbd{background:rgba(7,21,46,.07);border-color:rgba(7,21,46,.16)}
+#helpPanel ul{list-style:none;font-size:.8em;line-height:1.5}
+#helpPanel li{display:flex;justify-content:space-between;gap:1em;padding:.32em 0;color:#9BB3D4}
+[data-theme="light"] #helpPanel li{color:#4A5B77}
+#helpPanel li span:last-child{color:#EAF2FF;text-align:right}
+[data-theme="light"] #helpPanel li span:last-child{color:#07152E}
+
+#notesBar{
+  position:fixed;left:16px;bottom:80px;width:min(360px,calc(100vw - 32px));z-index:75;
+  background:rgba(7,21,46,.92);border:1px solid rgba(255,255,255,.14);
+  border-radius:.9em;padding:.85em 1em;backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+  opacity:0;visibility:hidden;transform:translateY(12px);
+  transition:all .28s;max-height:34vh;overflow-y:auto;
+}
+[data-theme="light"] #notesBar{background:rgba(255,255,255,.95);border-color:rgba(7,21,46,.14);color:#07152E}
+#notesBar.open{opacity:1;visibility:visible;transform:none}
+#notesBar .nh{
+  font-size:.7em;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+  color:#FFD166;margin-bottom:.5em;
+}
+#notesBar textarea{
+  width:100%;min-height:88px;resize:vertical;border-radius:.5em;
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);
+  color:inherit;font-size:.82em;line-height:1.5;padding:.55em .7em;outline:none;
+}
+[data-theme="light"] #notesBar textarea{background:rgba(7,21,46,.05);border-color:rgba(7,21,46,.14)}
+
+#presenterPanel{
+  position:fixed;left:16px;top:16px;width:min(340px,calc(100vw - 32px));z-index:75;
+  background:rgba(7,21,46,.94);border:1px solid rgba(255,255,255,.14);
+  border-radius:.9em;padding:.9em 1em;backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+  opacity:0;visibility:hidden;transform:translateY(-12px);transition:all .28s;
+}
+[data-theme="light"] #presenterPanel{background:rgba(255,255,255,.96);border-color:rgba(7,21,46,.14);color:#07152E}
+#presenterPanel.open{opacity:1;visibility:visible;transform:none}
+#presenterPanel .prow{display:flex;justify-content:space-between;font-size:.76em;padding:.22em 0;color:#9BB3D4}
+[data-theme="light"] #presenterPanel .prow{color:#4A5B77}
+#presenterPanel .prow b{color:#35D9FF}
+#presenterPanel .ptimer{
+  font-size:1.7em;font-weight:900;font-variant-numeric:tabular-nums;color:#35D9FF;
+  letter-spacing:.03em;margin:.2em 0 .4em;
+}
+
+/* Overlay layers */
+#drawLayer,#laserLayer,#spotLayer{
+  position:fixed;inset:0;z-index:65;pointer-events:none;
+}
+#drawLayer.on{pointer-events:auto;cursor:crosshair}
+#spotLayer.on{pointer-events:none;background:rgba(4,10,22,.82);transition:background .2s}
+
+/* Toast */
+#toast{
+  position:fixed;left:50%;top:70px;transform:translate(-50%,-16px);z-index:120;
+  padding:.65em 1.25em;border-radius:99px;font-size:.82em;font-weight:700;
+  background:rgba(7,21,46,.94);border:1px solid rgba(53,217,255,.5);color:var(--cyan);
+  opacity:0;pointer-events:none;transition:all .3s;
+  box-shadow:0 12px 34px -10px rgba(0,0,0,.8);
+}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* Confetti canvas */
+#confettiLayer{position:fixed;inset:0;z-index:110;pointer-events:none}
+
+/* Responsive */
+@media (max-width:1100px){
+  .grid2,.grid2.aa{grid-template-columns:1fr;gap:.8em}
+  .grid3{grid-template-columns:1fr 1fr}
+  .roadmap{grid-template-columns:1fr 1fr}
+}
+@media (max-width:720px){
+  #stage{font-size:calc(clamp(12px,.9vw + 8px,15px) * var(--fs))}
+  .slide{padding:16px 16px 96px}
+  .grid3,.roadmap{grid-template-columns:1fr}
+  #toolbar{gap:.15em;padding:.35em .4em;bottom:10px}
+  .tbtn{width:32px;height:32px}
+  .tbtn svg{width:16px;height:16px}
+  #counter{font-size:.7em;padding:0 .3em}
+  #topbar{display:none}
+  .video-card .play-btn{width:64px;height:64px}
+  .video-card .play-btn svg{width:28px;height:28px}
+}
+@media print{
+  #bgfx,#toolbar,#progress,#topbar,#sidebar,.panel,#notesBar,#presenterPanel,#drawLayer,#laserLayer,#spotLayer,#confettiLayer,#videoModal{display:none!important}
+  body{overflow:visible;background:#fff}
+  #stage{position:static;font-size:12pt}
+  .slide{
+    position:relative!important;opacity:1!important;visibility:visible!important;
+    transform:none!important;page-break-after:always;height:100vh;padding:24px;
+    display:flex!important;
+  }
+  .reveal{opacity:1!important;transform:none!important;filter:none!important}
+}
+</style>
+</head>
+<body data-theme="dark">
+
+<div id="bgfx">
+  <div class="grad"></div>
+  <div class="grid"></div>
+  <div class="orbs">
+    <div class="orb a"></div><div class="orb b"></div><div class="orb c"></div>
+  </div>
+</div>
+
+<div id="progress"></div>
+
+<div id="topbar">
+  <div class="brand">
+    <span class="dot"></span>
+    <span id="lessonTag" class="lesson-tag l1">BÀI 1</span>
+    <span>VẬT LÝ · ĐIỆN TỪ HỌC</span>
+  </div>
+  <div style="display:flex;gap:1.2em;align-items:center">
+    <span id="clock">00:00</span>
+    <span id="slideTitleMini" style="max-width:40vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+  </div>
+</div>
+
+<main id="stage" aria-live="polite"></main>
+
+<aside id="sidebar" aria-label="Danh sách slide">
+  <div class="sb-head">
+    <span>Mục lục</span>
+    <button class="tbtn" id="closeSidebar" title="Đóng (Esc)" style="width:28px;height:28px">
+      <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+  <div id="thumbs"></div>
+</aside>
+
+<nav id="toolbar" aria-label="Điều khiển trình chiếu">
+  <button class="tbtn" id="btnMenu" title="Mục lục (M)">
+    <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+  </button>
+  <div class="tsep"></div>
+  <button class="tbtn" id="btnPrev" title="Slide trước (←)">
+    <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+  </button>
+  <span id="counter"><b>1</b> / 22</span>
+  <button class="tbtn" id="btnNext" title="Slide tiếp (→ hoặc Space)">
+    <svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+  </button>
+  <div class="tsep"></div>
+  <button class="tbtn" id="btnPen" title="Bút vẽ (P)">
+    <svg viewBox="0 0 24 24"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+  </button>
+  <button class="tbtn" id="btnLaser" title="Bút laser (L)">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/></svg>
+  </button>
+  <button class="tbtn" id="btnSpot" title="Đèn rọi (H)">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></svg>
+  </button>
+  <div class="tsep"></div>
+  <button class="tbtn" id="btnNotes" title="Ghi chú (N)">
+    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>
+  </button>
+  <button class="tbtn" id="btnPresenter" title="Người thuyết trình (R)">
+    <svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+  </button>
+  <div class="tsep"></div>
+  <button class="tbtn" id="btnFull" title="Toàn màn hình (F)">
+    <svg viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+  </button>
+  <button class="tbtn" id="btnSettings" title="Cài đặt">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+  </button>
+  <button class="tbtn" id="btnHelp" title="Trợ giúp (?)">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+  </button>
+</nav>
+
+<div class="panel" id="settingsPanel">
+  <h4>Cài đặt <button class="tbtn" data-close="settingsPanel" style="width:24px;height:24px"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></h4>
+  <div class="row"><label>Giao diện</label>
+    <select id="setTheme"><option value="dark">Tối</option><option value="light">Sáng</option></select>
+  </div>
+  <div class="row"><label>Hiệu ứng chuyển cảnh</label>
+    <select id="setTransition">
+      <option value="fade">Fade</option>
+      <option value="slide">Slide ngang</option>
+      <option value="zoom">Zoom</option>
+      <option value="flip">3D Flip</option>
+      <option value="push">Push</option>
+    </select>
+  </div>
+  <div class="row"><label>Tốc độ chuyển cảnh</label>
+    <select id="setSpeed">
+      <option value="0.22">Nhanh</option>
+      <option value="0.55" selected>Vừa</option>
+      <option value="0.9">Chậm</option>
+    </select>
+  </div>
+  <div class="row"><label>Cỡ chữ</label>
+    <select id="setFont">
+      <option value="0.85">Nhỏ</option>
+      <option value="1" selected>Vừa</option>
+      <option value="1.15">Lớn</option>
+      <option value="1.3">Rất lớn</option>
+    </select>
+  </div>
+  <div class="row"><label>Hiệu ứng nền</label><button class="switch on" id="setFx" aria-label="Bật tắt hiệu ứng nền"></button></div>
+  <div class="row"><label>Âm thanh hiệu ứng</label><button class="switch" id="setSound" aria-label="Bật tắt âm thanh"></button></div>
+  <div class="row"><label>Tự động lưu</label><button class="switch on" id="setSave" aria-label="Bật tắt tự động lưu"></button></div>
+  <div class="row" style="gap:.5em">
+    <button class="btn ghost sm" id="btnExportNotes" style="flex:1">Xuất ghi chú (TXT)</button>
+    <button class="btn ghost sm" id="btnPrint" style="flex:1">In / PDF</button>
+  </div>
+  <div class="row" style="gap:.5em">
+    <button class="btn ghost sm" id="btnReset" style="flex:1">Khôi phục mặc định</button>
+    <button class="btn ghost sm" id="btnClearData" style="flex:1">Xóa dữ liệu lưu</button>
+  </div>
+  <div style="font-size:.7em;color:#7E93B4;line-height:1.5;margin-top:.7em">
+    Dữ liệu chỉ lưu trong trình duyệt hiện tại (localStorage).
+  </div>
+</div>
+
+<div class="panel" id="helpPanel">
+  <h4>Phím tắt &amp; trợ giúp <button class="tbtn" data-close="helpPanel" style="width:24px;height:24px"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></h4>
+  <ul>
+    <li><span><span class="kbd">→</span><span class="kbd">Space</span><span class="kbd">Enter</span></span><span>Tiếp theo</span></li>
+    <li><span><span class="kbd">←</span></span><span>Quay lại</span></li>
+    <li><span><span class="kbd">Home</span> / <span class="kbd">End</span></span><span>Đầu / cuối</span></li>
+    <li><span><span class="kbd">F</span></span><span>Toàn màn hình</span></li>
+    <li><span><span class="kbd">M</span></span><span>Mục lục</span></li>
+    <li><span><span class="kbd">N</span></span><span>Ghi chú</span></li>
+    <li><span><span class="kbd">R</span></span><span>Người thuyết trình</span></li>
+    <li><span><span class="kbd">P</span> / <span class="kbd">E</span> / <span class="kbd">X</span></span><span>Bút vẽ / Tẩy / Xóa hết</span></li>
+    <li><span><span class="kbd">L</span></span><span>Bút laser</span></li>
+    <li><span><span class="kbd">H</span></span><span>Đèn rọi</span></li>
+    <li><span><span class="kbd">U</span></span><span>Ẩn/hiện giao diện</span></li>
+    <li><span><span class="kbd">Esc</span></span><span>Đóng lớp phủ</span></li>
+    <li><span><span class="kbd">?</span></span><span>Trợ giúp</span></li>
+  </ul>
+  <div style="margin-top:.9em;font-size:.74em;line-height:1.55;color:#7E93B4">
+    <b style="color:#35D9FF">Giới hạn:</b> File HTML độc lập, chạy hoàn toàn ngoại tuyến (trừ video YouTube cần mạng).
+    Không có đồng bộ đám mây. Xuất PDF dùng hộp thoại in của trình duyệt.
+    Video thí nghiệm được nhúng từ YouTube — nếu video không hiển thị, dùng nút "Mở tìm kiếm YouTube".
+  </div>
+</div>
+
+<div id="notesBar">
+  <div class="nh">Ghi chú người thuyết trình</div>
+  <textarea id="noteInput" placeholder="Nhập ghi chú cho slide này…"></textarea>
+</div>
+
+<div id="presenterPanel">
+  <div class="nh" style="font-size:.7em;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#FFD166;margin-bottom:.4em">Người thuyết trình</div>
+  <div class="ptimer" id="ptimer">00:00</div>
+  <div class="prow"><span>Slide hiện tại</span><b id="pCur">1</b></div>
+  <div class="prow"><span>Slide tiếp theo</span><b id="pNext">—</b></div>
+  <div class="prow"><span>Ghi chú</span></div>
+  <div style="font-size:.76em;line-height:1.5;color:#9BB3D4;margin-top:.25em;max-height:9em;overflow:auto" id="pNote"></div>
+  <div style="display:flex;gap:.4em;margin-top:.7em">
+    <button class="btn sm ghost" id="pToggle" style="flex:1">Tạm dừng</button>
+    <button class="btn sm ghost" id="pReset" style="flex:1">Đặt lại</button>
+  </div>
+</div>
+
+<div id="videoModal">
+  <div class="modal-content">
+    <button class="modal-close" id="videoClose" aria-label="Đóng">×</button>
+    <div class="modal-frame">
+      <iframe id="videoIframe" src="" title="Video thí nghiệm" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+    </div>
+    <div class="modal-footer">
+      <span id="videoTitle">Video thí nghiệm</span>
+      <a id="videoSearchLink" href="#" target="_blank" rel="noopener">Mở tìm kiếm YouTube →</a>
+    </div>
+  </div>
+</div>
+
+<canvas id="drawLayer"></canvas>
+<canvas id="laserLayer"></canvas>
+<div id="spotLayer"></div>
+<canvas id="confettiLayer"></canvas>
+
+<div id="toast"></div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
+const $  = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+
+const Sound = (() => {
+  let ctx = null, enabled = false;
+  const ensure = () => {
+    if (!ctx) { try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { ctx = null; } }
+    if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
+    return ctx;
+  };
+  return {
+    setEnabled(v) { enabled = v; },
+    play(freq = 660, dur = 0.06, type = "sine", vol = 0.06) {
+      if (!enabled) return;
+      const c = ensure(); if (!c) return;
+      try {
+        const o = c.createOscillator(), g = c.createGain();
+        o.type = type; o.frequency.value = freq;
+        g.gain.setValueAtTime(vol, c.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + dur);
+        o.connect(g); g.connect(c.destination);
+        o.start(); o.stop(c.currentTime + dur);
+      } catch (e) {}
+    }
+  };
+})();
+
+function toast(msg, ms = 1800) {
+  const t = $("#toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.classList.remove("show"), ms);
+}
+
+/* ============================================================
+   STORAGE
+   ============================================================ */
+const Store = {
+  key: "bai_giang_dien_tu_hoc_v1",
+  data: { notes: {}, settings: {} },
+  load() {
+    try {
+      const raw = localStorage.getItem(this.key);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object") {
+          this.data.notes = parsed.notes && typeof parsed.notes === "object" ? parsed.notes : {};
+          this.data.settings = parsed.settings && typeof parsed.settings === "object" ? parsed.settings : {};
+        }
+      }
+    } catch (e) {}
+  },
+  save() {
+    if (!State.autoSave) return;
+    try { localStorage.setItem(this.key, JSON.stringify(this.data)); } catch (e) {}
+  },
+  clear() { try { localStorage.removeItem(this.key); } catch (e) {} this.data = { notes: {}, settings: {} }; }
+};
+
+/* ============================================================
+   GLOBAL STATE
+   ============================================================ */
+const State = {
+  current: 0,
+  busy: false,
+  fxOn: true,
+  soundOn: false,
+  autoSave: true,
+  transition: "fade",
+  speed: 0.55,
+  fontScale: 1,
+  theme: "dark",
+  penOn: false,
+  laserOn: false,
+  spotOn: false,
+  hideUI: false,
+  notesOpen: false,
+  presenterOpen: false
+};
+
+/* ============================================================
+   VIDEO LINKS (thay bằng video ID YouTube phù hợp nếu cần)
+   ============================================================ */
+const VIDEOS = {
+  faraday: {
+    title: "Thí nghiệm cảm ứng điện từ của Faraday",
+    id: "eJeozuzJQic", // <-- có thể thay bằng video ID khác
+    search: "thí nghiệm cảm ứng điện từ faraday ống dây nam châm",
+    description: "Đưa nam châm vĩnh cửu vào/ra khỏi ống dây — kim điện kế lệch chứng tỏ có dòng điện cảm ứng."
+  },
+  acLED: {
+    title: "Thí nghiệm đèn LED nhấp nháy với dòng xoay chiều",
+    id: "QxkXxC_asNM", // <-- có thể thay bằng video ID khác
+    search: "thí nghiệm dòng điện xoay chiều đèn LED cuộn dây",
+    description: "Cuộn dây A nối nguồn AC 12V, cuộn dây B gắn LED. Khi bật nguồn, LED nhấp nháy theo tần số dòng xoay chiều."
+  }
+};
+
+/* ============================================================
+   SLIDE DATA
+   ============================================================ */
+const SLIDES = [
+/* ---------- BÀI 1: CẢM ỨNG ĐIỆN TỪ ---------- */
+{
+  id: "cover1",
+  lesson: 1,
+  title: "Trang bìa Bài 1",
+  notes: "Chào lớp. Hôm nay chúng ta bắt đầu với Bài 1 — Hiện tượng cảm ứng điện từ. Đây là nền tảng của toàn bộ chương điện từ học.",
+  html: () => `
+  <div class="slide-body center" style="text-align:center">
+    <div class="cover-badge">Vật lý · Bài 1</div>
+    <h1 class="cover-title">Hiện tượng<br>cảm ứng điện từ</h1>
+    <p class="cover-sub">Từ thông · Định luật Faraday · Định luật Lenz</p>
+    <div style="display:flex;gap:.6em;flex-wrap:wrap;justify-content:center;margin-top:1.4em">
+      <span class="chip">Từ thông</span>
+      <span class="chip p">Faraday</span>
+      <span class="chip k">Lenz</span>
+      <span class="chip y">Thí nghiệm</span>
+    </div>
+    <div style="margin-top:2.2em;font-size:.8em;color:var(--muted)">
+      Dùng phím <b style="color:var(--cyan)">→</b> hoặc <b style="color:var(--cyan)">Space</b> để bắt đầu
+    </div>
+  </div>`
+},
+{
+  id: "obj1",
+  lesson: 1,
+  title: "Mục tiêu Bài 1",
+  notes: "Nêu rõ 4 mục tiêu cần đạt sau bài học này.",
+  html: () => `
+  <div class="slide-body">
+    <div class="eyebrow reveal">Bài 1 · Định hướng</div>
+    <h2 class="slide-h2 reveal d1">Mục tiêu bài học</h2>
+    <p class="lead reveal d2">Sau bài học, học sinh có thể:</p>
+    <div class="grid2 stagger" style="margin-top:.6em">
+      <div class="card glow">
+        <h3><span class="chip">01</span> Hiểu khái niệm</h3>
+        <p>Nêu được định nghĩa từ thông, đơn vị, và ý nghĩa hình học của từ thông.</p>
+      </div>
+      <div class="card">
+        <h3><span class="chip p">02</span> Trình bày hiện tượng</h3>
+        <p>Mô tả được hiện tượng cảm ứng điện từ và điều kiện xuất hiện dòng điện cảm ứng.</p>
+      </div>
+      <div class="card">
+        <h3><span class="chip k">03</span> Vận dụng định luật</h3>
+        <p>Phát biểu và viết được biểu thức định luật Faraday, định luật Lenz; tính được suất điện động cảm ứng.</p>
+      </div>
+      <div class="card">
+        <h3><span class="chip y">04</span> Liên hệ ứng dụng</h3>
+        <p>Nêu được ứng dụng của hiện tượng cảm ứng điện từ trong đời sống và kỹ thuật.</p>
+      </div>
+    </div>
+  </div>`
+},
+{
+  id: "flux",
+  lesson: 1,
+  title: "Từ thông",
+  notes: "Nhấn mạnh công thức Φ = B·S·cos α. α là góc giữa pháp tuyến và vectơ B. Đơn vị Weber.",
+  html: () => `
+  <div class="slide-body">
+    <div class="eyebrow">Bài 1 · Khái niệm cơ bản</div>
+    <h2 class="slide-h2">Từ thông</h2>
+    <div class="grid2 aa" style="margin-top:.55em">
+      <div class="reveal">
+        <div class="card glow">
+          <h3>Định nghĩa</h3>
+          <p>Từ thông qua một diện tích S đặt trong từ trường đều B là đại lượng đặc trưng cho số đường sức từ xuyên qua diện tích đó.</p>
+          <div class="formula big center" style="width:100%;justify-content:center;margin-top:.7em">
+            Φ <span class="op">=</span> B·S·cos α
+          </div>
+        </div>
+        <div class="card" style="margin-top:.8em">
+          <h3>Ý nghĩa các đại lượng</h3>
+          <ul>
+            <li><b>Φ</b> — từ thông (Wb, đọc là Vê-be)</li>
+            <li><b>B</b> — cảm ứng từ (T, Tesla)</li>
+            <li><b>S</b> — diện tích khung dây (m²)</li>
+            <li><b>α</b> — góc giữa pháp tuyến và vectơ B</li>
+          </ul>
+        </div>
+      </div>
+      <div class="card glow reveal d2" style="padding:.7em">
+        <svg viewBox="0 0 360 240" style="width:100%;height:auto;display:block">
+          <defs>
+            <linearGradient id="gSurf" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#35D9FF" stop-opacity=".35"/>
+              <stop offset="100%" stop-color="#8957FF" stop-opacity=".25"/>
+            </linearGradient>
+          </defs>
+          <!-- field lines -->
+          <g stroke="rgba(255,209,102,.55)" stroke-width="1.4" stroke-dasharray="4 4">
+            <line x1="40" y1="60" x2="320" y2="60"/>
+            <line x1="40" y1="90" x2="320" y2="90"/>
+            <line x1="40" y1="120" x2="320" y2="120"/>
+            <line x1="40" y1="150" x2="320" y2="150"/>
+            <line x1="40" y1="180" x2="320" y2="180"/>
+          </g>
+          <!-- surface -->
+          <ellipse cx="180" cy="120" rx="80" ry="34" fill="url(#gSurf)" stroke="#35D9FF" stroke-width="2.2"/>
+          <text x="180" y="124" fill="#EAF2FF" font-size="13" font-weight="700" text-anchor="middle">S</text>
+          <!-- normal -->
+          <line x1="180" y1="120" x2="180" y2="30" stroke="#FF4FCB" stroke-width="2.2" stroke-dasharray="3 3"/>
+          <polygon points="180,30 176,40 184,40" fill="#FF4FCB"/>
+          <text x="188" y="36" fill="#FF4FCB" font-size="12" font-weight="700">n</text>
+          <!-- B vector -->
+          <line x1="260" y1="120" x2="320" y2="120" stroke="#FFD166" stroke-width="2.5"/>
+          <polygon points="320,120 312,116 312,124" fill="#FFD166"/>
+          <text x="290" y="112" fill="#FFD166" font-size="12" font-weight="700" text-anchor="middle">B</text>
+          <!-- angle -->
+          <path d="M180,90 a30,30 0 0 1 15,-12" fill="none" stroke="#FFD166" stroke-width="1.6"/>
+          <text x="200" y="82" fill="#FFD166" font-size="11" font-weight="700">α</text>
+        </svg>
+        <div style="text-align:center;font-size:.78em;color:var(--muted);padding-top:.3em">
+          Từ thông qua diện tích S
+        </div>
+      </div>
+    </div>
+    <div class="note reveal d3" style="margin-top:.85em">
+      <b>Trường hợp đặc biệt:</b> α = 0° → Φ<sub>max</sub> = B·S · α = 90° → Φ = 0 (không có đường sức xuyên qua).
+    </div>
+  </div>`
+},
+{
+  id: "induction",
+  lesson: 1,
+  title: "Hiện tượng cảm ứng điện từ",
+  notes: "Định nghĩa chính xác. Nhấn mạnh điều kiện: từ thông phải BIẾN THIÊN, không phải từ thông lớn.",
+  html: () => `
+  <div class="slide-body">
+    <div class="eyebrow">Bài 1 · Hiện tượng</div>
+    <h2 class="slide-h2">Hiện tượng cảm ứng điện từ</h2>
+    <div class="grid2 aa" style="margin-top:.55em">
+      <div class="reveal">
+        <div class="card glow">
+          <h3>Định nghĩa</h3>
+          <p>Khi <b style="color:var(--cyan)">từ thông</b> qua một mạch kín <b style="color:var(--cyan)">biến thiên theo thời gian</b>, trong mạch xuất hiện một suất điện động cảm ứng. Nếu mạch kín, suất điện động này tạo ra <b style="color:var(--yellow)">dòng điện cảm ứng</b>.</p>
+        </div>
+        <div class="card" style="margin-top:.8em">
+          <h3>Điều kiện xuất hiện dòng điện cảm ứng</h3>
+          <ul class="steps">
+            <li>Mạch phải kín (có đường đi liên tục cho dòng điện).</li>
+            <li>Từ thông qua mạch phải <b>biến thiên</b> theo thời gian.</li>
+            <li>Từ thông biến thiên càng nhanh → suất điện động càng lớn.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="card glow reveal d2" style="padding:.7em">
+        <svg viewBox="0 0 360 260" style="width:100%;height:auto;display:block">
+          <defs>
+            <linearGradient id="gMag2" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="#FF4FCB"/><stop offset="100%" stop-color="#8957FF"/>
+            </linearGradient>
+          </defs>
+          <!-- magnet -->
+          <rect x="30" y="105" width="60" height="40" rx="4" fill="url(#gMag2)"/>
+          <text x="60" y="130" fill="#fff" font-size="16" font-weight="800" text-anchor="middle">N</text>
+          <text x="60" y="112" fill="#fff" font-size="9" text-anchor="middle" opacity=".8">→</text>
+          <!-- coil -->
+          <g transform="translate(230,125)">
+            <ellipse cx="0" cy="0" rx="52" ry="52" fill="none" stroke="#35D9FF" stroke-width="3"/>
+            <ellipse cx="0" cy="0" rx="38" ry="38" fill="none" stroke="#35D9FF" stroke-width="2" opacity=".7"/>
+            <ellipse cx="0" cy="0" rx="24" ry="24" fill="none" stroke="#35D9FF" stroke-width="2" opacity=".5"/>
+            <text x="0" y="58" fill="#35D9FF" font-size="11" font-weight="700" text-anchor="middle">Cuộn dây</text>
+          </g>
+          <!-- meter -->
+          <circle cx="230" cy="220" r="20" fill="none" stroke="#FFD166" stroke-width="2"/>
+          <line x1="230" y1="220" x2="230" y2="205" stroke="#FFD166" stroke-width="2"/>
+          <text x="230" y="248" fill="#FFD166" font-size="10" text-anchor="middle">Điện kế</text>
+          <!-- arrow -->
+          <path d="M110,125 q30,-25 60,0" fill="none" stroke="#FFD166" stroke-width="2" marker-end="url(#arr3)"/>
+          <text x="140" y="105" fill="#FFD166" font-size="10" font-weight="700" text-anchor="middle">di chuyển</text>
+          <defs><marker id="arr3" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L6,3 L0,6 Z" fill="#FFD166"/></marker></defs>
+        </svg>
+      </div>
+    </div>
+    <div class="note ok reveal d3" style="margin-top:.85em">
+      <b>Thực nghiệm kinh điển:</b> Đưa nam châm vĩnh cửu vào/ra khỏi ống dây — kim điện kế lệch → có dòng điện cảm ứng. Khi nam châm đứng yên, kim không lệch.
+    </div>
+  </div>`
+},
+{
+  id: "faraday",
+  lesson: 1,
+  title: "Định luật Faraday",
+  notes: "Phát biểu và viết công thức. Chú ý dấu trừ thể hiện định luật Lenz. Đơn vị: Wb/s = V.",
+  html: () => `
+  <div class="slide-body">
+    <div class="eyebrow">Bài 1 · Định luật</div>
+    <h2 class="slide-h2">Định luật Faraday về cảm ứng điện từ</h2>
+    <div class="grid2" style="margin-top:.5em">
+      <div class="card glow reveal">
+        <h3>Phát biểu</h3>
+        <p>Suất điện động cảm ứng trong một mạch kín <b style="color:var(--cyan)">tỉ lệ với tốc độ biến thiên của từ thông</b> qua mạch đó.</p>
+        <h3 style="margin-top:.9em">Công thức</h3>
+        <div class="formula big" style="width:100%;justify-content:center">
+          e <span class="op">=</span> <span class="op">−</span>
+          <span class="frac"><span class="num">ΔΦ</span><span class="den">Δt</span></span>
+        </div>
+        <p style="margin-top:.6em;font-size:.86em">Với cuộn dây N vòng:</p>
+        <div class="formula big" style="width:100%;justify-content:center;margin-top:.4em">
+          e <span class="op">=</span> <span class="op">−</span>N·
+          <span class="frac"><span class="num">ΔΦ</span><span class="den">Δt</span></span>
+        </div>
+      </div>
+      <div class="card reveal d2">
+        <h3>Ý nghĩa</h3>
+        <ul>
+          <li><b>e</b> — suất điện động cảm ứng (V)</li>
+          <li><b>Φ</b> — từ thông (Wb)</li>
+          <li><b>t</b> — thời gian (s)</li>
+          <li><b>N</b> — số vòng dây</li>
+          <li>ΔΦ/Δt — tốc độ biến thiên từ thông</li>
+        </ul>
+        <div class="note warn" style="margin-top:.7em">
+          <b>Dấu “−”</b> thể hiện <b>định luật Lenz</b> — chiều của suất điện động cảm ứng chống lại sự biến thiên từ thông sinh ra nó. Khi chỉ cần độ lớn: |e| = N·|ΔΦ|/Δt.
+        </div>
+      </div>
+    </div>
+    <div class="note ok reveal d3" style="margin-top:.85em">
+      <b>Đơn vị:</b> 1 V = 1 Wb/s. Từ thông biến thiên càng nhanh, suất điện động càng lớn — đây là lý do máy phát điện quay nhanh tạo ra điện áp cao.
+    </div>
+  </div>`
+},
+{
+  id: "lenz",
+  lesson: 1,
+  title: "Định luật Lenz",
+  notes: "Phát biểu. Giải thích ứng dụng xác định chiều dòng cảm ứng. Nhấn mạnh tính bảo toàn năng lượng.",
+  html: () => `
+  <div class="slide-body">
+    <div class="eyebrow">Bài 1 · Chiều dòng cảm ứng</div>
+    <h2 class="slide-h2">Định luật Lenz</h2>
+    <div class="grid2 aa" style="margin-top:.55em">
+      <div class="reveal">
+        <div class="card glow">
+          <h3>Phát biểu</h3>
+          <p>Dòng điện cảm ứng có chiều sao cho <b style="color:var(--cyan)">từ trường do nó sinh ra chống lại sự biến thiên của từ thông</b> sinh ra nó.</p>
+        </div>
+        <div class="card" style="margin-top:.8em">
+          <h3>Cách xác định chiều dòng điện cảm ứng</h3>
+          <ul class="steps">
+            <li>Xác định chiều của cảm ứng từ ban đầu B<sub>0</sub>.</li>
+            <li>Xác định xu hướng biến thiên: Φ đang <b>tăng</b> hay <b>giảm</b>?</li>
+            <li>Nếu Φ tăng → B<sub>cảm ứng</sub> ngược chiều B<sub>0</sub>.</li>
+            <li>Nếu Φ giảm → B<sub>cảm ứng</sub> cùng chiều B<sub>0</sub>.</li>
+            <li>Dùng quy tắc nắm tay phải để suy ra chiều dòng điện.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="card reveal d2">
+        <h3>Ý nghĩa vật lý</h3>
+        <p style="line-height:1.6">Định luật Lenz là một dạng của <b style="color:var(--yellow)">định luật bảo toàn năng lượng</b>: để sinh ra dòng điện cảm ứng, ta phải <b>tiêu tốn công</b> để thay đổi từ thông — năng lượng không thể tự sinh ra.</p>
+        <div class="formula" style="width:100%;justify-content:center;margin-top:.7em;font-size:.92em">
+          e <span class="op">=</span> <span class="op">−</span>N·
+          <span class="frac"><span class="num">ΔΦ</span><span class="den">Δt</span></span>
+        </div>
+        <div class="note ok" style="margin-top:.7em">
+          Dấu “−” trong công thức Faraday chính là nội dung của định luật Lenz.
+        </div>
+      </div>
+    </div>
+  </div>`
+},
+{
+  id: "app1",
+  lesson: 1,
+  title: "Ứng dụng",
+  notes: "Liệt kê các ứng dụng quen thuộc. Nhấn mạnh máy phát điện là ứng dụng quan trọng nhất — sẽ học ở Bài 2.",
+  html: () => `
+  <div class="slide-body">
+    <div class="eyebrow">Bài 1 · Ứng dụng</div>
+    <h2 class="slide-h2">Ứng dụng của hiện tượng cảm ứng điện từ</h2>
+    <div class="grid3 stagger" style="margin-top:.6em">
+      <div class="card glow">
+        <h3 style="color:var(--cyan)">⚡ Máy phát điện</h3>
+        <p>Khung dây quay trong từ trường → từ thông biến thiên → suất điện động cảm ứng. Đây là nguyên lý của mọi máy phát điện xoay chiều.</p>
+      </div>
+      <div class="card">
+        <h3 style="color:var(--purple)">🔥 Bếp từ</h3>
+        <p>Dòng điện xoay chiều tần số cao trong cuộn dây tạo từ trường biến thiên, sinh dòng Foucault trong đáy nồi kim loại → nóng lên.</p>
+      </div>
+      <div class="card">
+        <h3 style="color:var(--pink)">📱 Sạc không dây</h3>
+        <p>Cuộn dây trong đế sạc và trong điện thoại ghép cảm ứng, truyền năng lượng qua từ trường biến thiên.</p>
+      </div>
+      <div class="card">
+        <h3 style="color:var(--yellow)">🚂 Tàu đệm từ</h3>
+        <p>Dùng lực điện từ nâng và đẩy tàu chạy trên đệm không khí — dựa trên tương tác điện từ mạnh.</p>
+      </div>
+      <div class="card">
+        <h3 style="color:var(--cyan)">🎤 Micro, loa điện</h3>
+        <p>Micro: dao động âm thanh làm màng rung chuyển động trong từ trường → sinh dòng cảm ứng. Loa: ngược lại.</p>
+      </div>
+      <div class="card">
+        <h3 style="color:var(--purple)">🛑 Phanh điện từ</h3>
+        <p>Dòng Foucault sinh ra trong đĩa kim loại quay trong từ trường tạo lực hãm — dùng trong cân, phanh xe, máy tập.</p>
+      </div>
+    </div>
+  </div>`
+},
+{
+  id: "video1",
+  lesson: 1,
+  title: "Thí nghiệm Faraday",
+  notes: "Cho học sinh xem video thí nghiệm Faraday. Yêu cầu quan sát: khi nào kim điện kế lệch? Khi nào không lệch?",
+  html: () => `
+  <div class="slide-body">
+    <div class="eyebrow">Bài 1 · Thí nghiệm minh họa</div>
+    <h2 class="slide-h2">Thí nghiệm: Nam châm và ống dây</h2>
+    <div class="grid2 aa" style="margin-top:.5em;gap:1.4em">
+      <div class="reveal">
+        <div class="video-card" data-video="faraday" tabindex="0" role="button" aria-label="Xem video thí nghiệm Faraday">
+          <div class="vthumb"></div>
+          <div class="play-btn">
+            <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          </div>
+          <div class="vlabel">
+            <span>Nhấn để phát video thí nghiệm</span>
+            <span class="tag">▶ YOUTUBE</span>
+          </div>
+        </div>
+        <div class="video-alt">
+          <a href="https://www.youtube.com/results?search_query=th%C3%AD+nghi%E1%BB%87m+c%E1%BA%A3m+%E1%BB%A9ng+%C4%91i%E1%BB%87n+t%E1%BB%AB+faraday+%E1%BB%91ng+d%C3%A2y+nam+ch%C3%A2m" target="_blank" rel="noopener">🔍 Mở tìm kiếm YouTube</a>
+          <a href="https://vi.wikipedia.org/wiki/C%E1%BA%A3m_%E1%BB%A9ng_%C4%91i%E1%BB%87n_t%E1%BB%AB" target="_blank" rel="noopener">📖 Đọc thêm</a>
+        </div>
+      </div>
+      <div class="reveal d2">
+        <div class="card glow">
+          <h3>Mô tả thí nghiệm</h3>
+          <p style="line-height:1.65">Một ống dây dẫn nhiều vòng được nối với điện kế. Đưa nam châm vĩnh cửu vào lòng ống dây, rồi rút ra.</p>
+          <ul style="margin-top:.5em">
+            <li><b style="color:var(--cyan)">Khi nam châm chuyển động:</b> kim điện kế lệch → có dòng điện cảm ứng.</li>
+            <li><b style="color:var(--pink)">Khi nam châm đứng yên:</b> kim điện kế không lệch → không có dòng điện.</li>
+            <li><b style="color:var(--yellow)">Đưa vào và rút ra:</b> kim lệch theo hai chiều ngược nhau → dòng điện đổi chiều.</li>
+          </ul>
+        </div>
+        <div class="note ok" style="margin-top:.8em">
+          <b>Kết luận:</b> Dòng điện cảm ứng xuất hiện khi từ thông qua ống dây biến thiên — xác nhận định luật Faraday.
+        </div>
+      </div>
+    </div>
+  </div>`
+},
+{
+  id: "quiz1",
+  lesson: 1,
+  title: "Câu hỏi ôn tập Bài 1",
+  notes: "Cho học sinh tự làm. Có thể bấm đáp án để hiện giải thích. Có hiệu ứng confetti khi đúng.",
+  html: () => `
+  <div class="slide-body">
+    <div class="eyebrow">Bài 1 · Ôn tập</div>
+    <h2 class="slide-h2">Câu hỏi ôn tập cuối bài</h2>
+    <div class="grid2 stagger" style="margin-top:.5em;gap:.9em">
+      <div class="card">
+        <div class="quiz-q" style="font-size:.92em">1. Từ thông qua một diện tích S đặt vuông góc với đường sức từ có giá trị:</div>
+        <div class="quiz">
+          <button class="quiz-opt" data-correct="0"><span class="k">A</span><span>Φ = 0</span></button>
+          <button class="quiz-opt" data-correct="1"><span class="k">B</span><span>Φ = B·S</span></button>
+          <button class="quiz-opt" data-correct="0"><span class="k">C</span><span>Φ = B/S</span></button>
+          <button class="quiz-opt" data-correct="0"><span class="k">D</span><span>Φ = B + S</span></button>
+        </div>
+        <div class="quiz-exp"><b>Giải thích:</b> Khi mặt phẳng khung vuông góc với B, góc α giữa pháp tuyến và B bằng 0 → cos α = 1 → Φ = B·S.</div>
+      </div>
+      <div class="card">
+        <div class="quiz-q" style="font-size:.92em">2. Điều kiện để xuất hiện dòng điện cảm ứng trong mạch kín là:</div>
+        <div class="quiz">
+          <button class="quiz-opt" data-correct="0"><span class="k">A</span><span>Mạch có từ trường mạnh</span></button>
+          <button class="quiz-opt" data-correct="1"><span class="k">B</span><span>Từ thông qua mạch biến thiên theo thời gian</span></button>
+          <button class="quiz-opt" data-correct="0"><span class="k">C</span><span>Mạch có nhiều vòng dây</span></button>
+          <button class="quiz-opt" data-correct="0"><span class="k">D</span><span>Mạch được đặt trong không khí</span></button>
+        </div>
+        <div class="quiz-exp"><b>Giải thích:</b> Từ thông lớn mà không đổi thì không có dòng cảm ứng. Điều kiện <b>bắt buộc</b> là từ thông biến thiên.</div>
+      </div>
+    </div>
+    <div class="card reveal d3" style="margin-top:.8em">
+      <div class="quiz-q" style="font-size:.92em">3. Một khung dây có N = 100 vòng, diện tích mỗi vòng S = 0,01 m², đặt trong từ trường đều B = 0,5 T. Từ thông qua khung (khi mặt phẳng khung vuông góc với B) là:</div>
+      <div class="quiz">
+        <button class="quiz-opt" data-correct="0"><span class="k">A</span><span>Φ = 0,005 Wb</span></button>
+        <button class="quiz-opt" data-correct="1"><span class="k">B</span><span>Φ = 0,5 Wb</span></button>
+        <button class="quiz-opt" data-correct="0"><span class="k">C</span><span>Φ = 5 Wb</span></button>
+        <button class="quiz-opt" data-correct="0"><span class="k">D</span><span>Φ = 50 Wb</span></button>
+      </div>
+      <div class="quiz-exp"><b>Giải thích:</b> Với N vòng: Φ<sub>tổng</sub> = N·B·S = 100 · 0,5 · 0,01 = 0,5 Wb. (Nếu chỉ tính từ thông qua một vòng: Φ = B·S = 0,005 Wb.)</div>
+    </div>
+  </div>`
+},
+
+/* ---------- BÀI 2: DÒNG ĐIỆN XOAY CHIỀU ---------- */
+{
+  id: "divider2",
+  lesson: 2,
+  title: "Chuyển sang Bài 2",
+  notes: "Chuyển sang bài mới. Bài 2 là ứng dụng trực tiếp của Bài 1 — máy phát điện tạo ra dòng xoay chiều.",
+  html: () => `
+  <div class="slide-body center" style="text-align:center">
+    <div class="section-num">02</div>
+    <h1 class="slide-title" style="margin-top:.15em">Dòng điện xoay chiều</h1>
+    <p class="lead" style="margin-top:.5em;max-width:60ch">
+      Ứng dụng trực tiếp của hiện tượng cảm ứng điện từ — nguồn điện của toàn bộ lưới điện hiện đại
+    </p>
+    <div style="display:flex;gap:.6em;flex-wrap:wrap;justify-content:center;margin-top:1.4em">
+      <span class="chip">Nguồn phát AC</span>
+      <span class="chip p">Từ thông &amp; sđđ</span>
+      <span class="chip k">Giá trị hiệu dụng</span>
+      <span class="chip y">Thí nghiệm LED</span>
+    </div>
+  </div>`
+},
+{
+  id: "obj2",
+  lesson: 2,
+  title: "Mục tiêu Bài 2",
+  notes: "Nêu mục tiêu. Liên hệ với Bài 1: máy phát điện dùng hiện tượng cảm ứng từ.",
+  html: () => `
+  <div class="slide-body">
+    <div class="eyebrow reveal">Bài 2 · Định hướng</div>
+    <h2 class="slide-h2 reveal d1">Mục tiêu bài học</h2>
+    <p class="lead reveal d2">Sau bài học, học sinh có thể:</p>
+    <div class="grid2 stagger" style="margin-top:.6em">
+      <div class="card glow">
+        <h3><span class="chip">01</span> Hiểu khái niệm AC</h3>
+        <p>Định nghĩa được dòng điện xoay chiều, phân biệt AC với DC.</p>
+      </div>
+      <div class="card">
+        <h3><span class="chip p">02</span> Nguyên tắc tạo AC</h3>
+        <p>Trình bày được nguyên tắc tạo ra dòng xoay chiều dựa trên hiện tượng cảm ứng điện từ.</p>
+      </div>
+      <div class="card">
+        <h3><span class="chip k">03</span> Viết biểu thức</h3>
+        <p>Viết được biểu thức của từ thông, suất điện động, cường độ dòng điện và điện áp tức thời.</p>
+      </div>
+      <div class="card">
+        <h3><span class="chip y">04</span> Giá trị hiệu dụng</h3>
+        <p>Tính được giá trị hiệu dụng I, U; công suất tỏa nhiệt trên điện trở.</p>
+      </div>
+    </div>
+  </div>`
+},
+{
+  id: "ac-concept",
+  lesson: 2,
+  title: "Khái niệm dòng xoay chiều",
+  notes: "Định nghĩa. So sánh DC và AC. Lấy ví dụ lưới điện 220V - 50Hz.",
+  html: () => `
+  <div class="slide-body">
+    <div class="eyebrow">Bài 2 · Khái niệm</div>
+    <h2 class="slide-h2">Dòng điện xoay chiều là gì?</h2>
+    <div class="grid2 aa" style="margin-top:.6em">
+      <div class="stagger">
+        <div class="card glow">
+          <h3>Định nghĩa</h3>
+          <p><b style="color:var(--fg)">Dòng điện xoay chiều (AC)</b> là dòng điện có cường độ và chiều biến đổi tuần hoàn theo thời gian.</p>
+        </div>
+        <div class="card" style="margin-top:.8em">
+          <h3>So sánh AC và DC</h3>
+          <ul>
+            <li><b style="color:var(--yellow)">DC</b> — chiều không đổi, cường độ có thể không đổi (pin, ắc quy).</li>
+            <li><b style="color:var(--cyan)">AC</b> — chiều đổi dấu tuần hoàn, cường độ biến thiên tuần hoàn.</li>
+            <li>Lưới điện Việt Nam: <b style="color:var(--cyan)">f = 50 Hz</b>, U = 220 V (hiệu dụng).</li>
+          </ul>
+        </div>
+      </div>
+      <div class="card glow reveal d2" style="padding:.6em">
+        <svg viewBox="0 0 420 220" style="width:100%;height:auto;display:block">
+          <defs>
+            <linearGradient id="gWave" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="#35D9FF"/><stop offset="100%" stop-color="#8957FF"/>
+            </linearGradient>
+          </defs>
+          <line x1="30" y1="110" x2="400" y2="110" stroke="rgba(155,179,212,.4)" stroke-width="1.5"/>
+          <line x1="30" y1="20" x2="30" y2="200" stroke="rgba(155,179,212,.4)" stroke-width="1.5"/>
+          <text x="392" y="128" fill="#9BB3D4" font-size="11" text-anchor="end">t</text>
+          <text x="14" y="26" fill="#9BB3D4" font-size="11">i</text>
+          <path d="M30,110 C60,30 90,30 120,110 C150,190 180,190 210,110 C240,30 270,30 300,110 C330,190 360,190 390,110"
+                fill="none" stroke="url(#gWave)" stroke-width="3.5" stroke-linecap="round"/>
+          <line x1="30" y1="46" x2="390" y2="46" stroke="#FFD166" stroke-width="1" stroke-dasharray="5 5" opacity=".8"/>
+          <text x="34" y="42" fill="#FFD166" font-size="11">I₀</text>
+        </svg>
+        <div style="text-align:center;font-size:.78em;color:var(--muted);padding:.35em 0 .2em">
+          Đồ thị hình sin của cường độ dòng xoay chiều
+        </div>
+      </div>
+    </div>
+  </div>`
+},
+{
+  id: "generation",
+  lesson: 2,
+  title: "Nguyên tắc tạo dòng AC",
+  notes: "Nhấn mạnh: kế thừa Bài 1. Khung dây quay → từ thông biến thiên tuần hoàn → suất điện động xoay chiều.",
+  html: () => `
+  <div class="slide-body">
+    <div class="eyebrow">Bài 2 · Nguyên tắc</div>
+    <h2 class="slide-h2">Nguyên tắc tạo ra dòng xoay chiều</h2>
+    <div class="grid2 aa" style="margin-top:.5em">
+      <div class="reveal">
+        <ul class="steps">
+          <li>Xét cuộn dây có <b>N</b> vòng, diện tích mỗi vòng <b>S</b>, đặt trong từ trường đều <b>B</b>.</li>
+          <li>Cho cuộn dây quay đều quanh trục vuông góc với vectơ cảm ứng từ với tốc độ góc <b>ω</b>.</li>
+          <li>Góc α giữa pháp tuyến và vectơ B thay đổi đều theo thời gian: α = ωt + φ.</li>
+          <li>Từ thông qua cuộn dây biến thiên tuần hoàn → sinh ra suất điện động cảm ứng xoay chiều.</li>
+          <li>Suất điện động đổi dấu sau mỗi nửa vòng quay → dòng điện xoay chiều.</li>
+        </ul>
+      </div>
+      <div class="card glow reveal d2" style="padding:.7em">
+        <svg viewBox="0 0 360 250" style="width:100%;height:auto;display:block">
+          <defs>
+            <linearGradient id="gMag" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="#FF4FCB"/><stop offset="100%" stop-color="#8957FF"/>
+            </linearGradient>
+          </defs>
+          <rect x="20" y="95" width="42" height="60" rx="6" fill="url(#gMag)" opacity=".85"/>
+          <text x="41" y="132" fill="#fff" font-size="18" font-weight="800" text-anchor="middle">N</text>
+          <rect x="298" y="95" width="42" height="60" rx="6" fill="#35D9FF" opacity=".75"/>
+          <text x="319" y="132" fill="#04101f" font-size="18" font-weight="800" text-anchor="middle">S</text>
+          <g stroke="rgba(155,179,212,.45)" stroke-width="1.2" stroke-dasharray="4 4">
+            <line x1="64" y1="110" x2="296" y2="110"/>
+            <line x1="64" y1="125" x2="296" y2="125"/>
+            <line x1="64" y1="140" x2="296" y2="140"/>
+          </g>
+          <g transform="translate(180,125)">
+            <ellipse cx="0" cy="0" rx="52" ry="24" fill="none" stroke="#FFD166" stroke-width="3.4"/>
+            <ellipse cx="0" cy="0" rx="38" ry="17" fill="none" stroke="#FFD166" stroke-width="2.4" opacity=".7"/>
+            <line x1="0" y1="-58" x2="0" y2="58" stroke="#9BB3D4" stroke-width="1.6" stroke-dasharray="5 5"/>
+            <circle cx="0" cy="0" r="4" fill="#35D9FF"/>
+            <path d="M52,0 a52,24 0 0 1 -104,0" fill="none" stroke="#35D9FF" stroke-width="2" opacity=".8"/>
+          </g>
+          <path d="M238,60 a46,18 0 0 1 34,10" fill="none" stroke="#35D9FF" stroke-width="2.5"/>
+          <polygon points="272,70 280,64 270,58" fill="#35D9FF"/>
+          <text x="262" y="52" fill="#35D9FF" font-size="13" font-weight="700">ω</text>
+        </svg>
+        <div style="text-align:center;font-size:.78em;color:var(--muted);padding-top:.3em">
+          Khung dây quay đều trong từ trường đều
+        </div>
+      </div>
+    </div>
+    <div class="note ok reveal d3" style="margin-top:.85em">
+      <b>Kế thừa Bài 1:</b> Nguyên tắc tạo dòng xoay chiều chính là ứng dụng của hiện tượng cảm ứng điện từ và định luật Faraday.
+    </div>
+  </div>`
+},
+{
+  id: "emf2",
+  lesson: 2,
+  title: "Từ thông &amp; suất điện động",
+  notes: "Viết biểu thức từ thông và sđđ. Nhấn mạnh: sđđ biến thiên điều hòa cùng tần số với từ thông nhưng lệch pha π/2.",
+  html: () => `
+  <div class="slide-body">
+    <div class="eyebrow">Bài 2 · Biểu thức</div>
+    <h2 class="slide-h2">Từ thông và suất điện động xoay chiều</h2>
+    <div class="grid2" style="margin-top:.5em">
+      <div class="card reveal">
+        <h3>Bước 1 — Từ thông</h3>
+        <div class="formula big" style="width:100%;justify-content:center">
+          Φ <span class="op">=</span> N·B·S·cos(ωt + φ)
+        </div>
+        <h3 style="margin-top:.9em">Bước 2 — Định luật Faraday</h3>
+        <div class="formula" style="width:100%;justify-content:center">
+          e <span class="op">=</span> <span class="op">−</span>
+          <span class="frac"><span class="num">dΦ</span><span class="den">dt</span></span>
+        </div>
+        <p style="margin-top:.7em;font-size:.88em">Vì N, B, S, ω không đổi, đạo hàm của cos là −sin:</p>
+      </div>
+      <div class="card glow reveal d2">
+        <h3>Kết quả</h3>
+        <div class="formula big" style="width:100%;justify-content:center">
+          e <span class="op">=</span> N·B·S·ω·sin(ωt + φ)
+        </div>
+        <div class="formula big" style="width:100%;justify-content:center;margin-top:.55em">
+          e <span class="op">=</span> E₀·sin(ωt + φ)
+        </div>
+        <h3 style="margin-top:.9em">Suất điện động cực đại</h3>
+        <div class="formula big" style="width:100%;justify-content:center;color:var(--yellow)">
+          E₀ <span class="op">=</span> N·B·S·ω
+        </div>
+      </div>
+    </div>
+    <div class="note ok reveal d3" style="margin-top:.85em">
+      <b>Nhận xét:</b> e biến thiên điều hòa cùng tần số góc ω với từ thông nhưng <b>lệch pha π/2</b> (sin so với cos). Suất điện động đổi dấu sau mỗi nửa chu kỳ.
+    </div>
+  </div>`
+},
+{
+  id: "quantities2",
+  lesson: 2,
+  title: "Đại lượng đặc trưng i, u",
+  notes: "Phân biệt φi, φu, Δφ. Đây là chỗ học sinh hay nhầm dấu. Nhấn mạnh quy ước Δφ = φu − φi.",
+  html: () => `
+  <div class="slide-body">
+    <div class="eyebrow">Bài 2 · Đại lượng</div>
+    <h2 class="slide-h2">Cường độ dòng điện &amp; điện áp tức thời</h2>
+    <div class="grid2" style="margin-top:.5em">
+      <div class="card glow reveal">
+        <h3>Biểu thức</h3>
+        <div class="formula big" style="width:100%;justify-content:center">
+          i <span class="op">=</span> I₀·cos(ωt + φ<sub>i</sub>)
+        </div>
+        <div class="formula big" style="width:100%;justify-content:center;margin-top:.5em">
+          u <span class="op">=</span> U₀·cos(ωt + φ<sub>u</sub>)
+        </div>
+        <div class="formula" style="width:100%;justify-content:center;margin-top:.6em;color:var(--yellow)">
+          Δφ <span class="op">=</span> φ<sub>u</sub> <span class="op">−</span> φ<sub>i</sub>
+        </div>
+      </div>
+      <div class="card reveal d2">
+        <h3>Ý nghĩa từng đại lượng</h3>
+        <ul>
+          <li><b>i, u</b> — giá trị tức thời tại thời điểm t</li>
+          <li><b>I₀, U₀</b> — giá trị cực đại (biên độ)</li>
+          <li><b>ω</b> — tần số góc (rad/s), ω = 2πf = 2π/T</li>
+          <li><b>φ<sub>i</sub>, φ<sub>u</sub></b> — pha ban đầu (rad)</li>
+          <li><b>Δφ</b> — độ lệch pha giữa u và i</li>
+        </ul>
+      </div>
+    </div>
+    <div class="note reveal d3" style="margin-top:.85em">
+      <b>Quy ước dấu:</b> Δφ &gt; 0 → u sớm pha hơn i. Δφ &lt; 0 → u trễ pha hơn i. Δφ = 0 → u cùng pha i.
+    </div>
+  </div>`
+},
+{
+  id: "rms2",
+  lesson: 2,
+  title: "Giá trị hiệu dụng",
+  notes: "Định nghĩa dựa trên nhiệt lượng. Nhấn mạnh: số liệu trên dụng cụ đo là giá trị hiệu dụng, không phải cực đại.",
+  html: () => `
+  <div class="slide-body">
+    <div class="eyebrow">Bài 2 · Hiệu dụng</div>
+    <h2 class="slide-h2">Giá trị hiệu dụng</h2>
+    <div class="card reveal" style="margin-top:.4em">
+      <h3>Định nghĩa</h3>
+      <p>Giá trị hiệu dụng của dòng điện xoay chiều là giá trị của dòng điện <b>không đổi</b> mà khi đi qua cùng một điện trở trong cùng thời gian sẽ tỏa ra <b>nhiệt lượng bằng</b> dòng điện xoay chiều đó.</p>
+    </div>
+    <div class="grid2" style="margin-top:.85em">
+      <div class="card glow reveal d1">
+        <h3>Cường độ hiệu dụng</h3>
+        <div class="formula big" style="width:100%;justify-content:center">
+          I <span class="op">=</span>
+          <span class="frac"><span class="num">I₀</span><span class="den">√2</span></span>
+        </div>
+        <h3 style="margin-top:.85em">Hiệu điện thế hiệu dụng</h3>
+        <div class="formula big" style="width:100%;justify-content:center">
+          U <span class="op">=</span>
+          <span class="frac"><span class="num">U₀</span><span class="den">√2</span></span>
+        </div>
+      </div>
+      <div class="card reveal d2">
+        <h3>Công suất tỏa nhiệt trên điện trở R</h3>
+        <div class="formula" style="width:100%;justify-content:center">
+          P <span class="op">=</span> R·I₀²·[ ½ <span class="op">+</span> ½·cos(2ωt <span class="op">+</span> 2φ<sub>i</sub>) ]
+        </div>
+        <p style="margin-top:.7em">Công suất biến thiên tuần hoàn với tần số gấp đôi. Giá trị trung bình:</p>
+        <div class="formula" style="width:100%;justify-content:center;margin-top:.5em;color:var(--yellow)">
+          P<sub>tb</sub> <span class="op">=</span> R·I² <span class="op">=</span> R·
+          <span class="frac"><span class="num">I₀²</span><span class="den">2</span></span>
+        </div>
+      </div>
+    </div>
+    <div class="note ok reveal d3" style="margin-top:.8em">
+      Số liệu ghi trên dụng cụ (220 V – 50 Hz) là <b>giá trị hiệu dụng</b>, không phải cực đại.
+    </div>
+  </div>`
+},
+{
+  id: "sim-ac",
+  lesson: 2,
+  title: "Mô phỏng dòng AC",
+  notes: "Mô phỏng tương tác — kéo thanh trượt để thay đổi biên độ, tần số, độ lệch pha. So sánh u(t) và i(t).",
+  html: () => `
+  <div class="slide-body" style="gap:.5em">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:1em;flex-wrap:wrap">
+      <h2 class="slide-h2" style="margin:0">Mô phỏng tương tác: Đồ thị dòng AC</h2>
+      <div style="display:flex;gap:.4em">
+        <button class="btn sm" data-ac="play">▶ Phát</button>
+        <button class="btn sm ghost" data-ac="pause">⏸ Tạm dừng</button>
+        <button class="btn sm ghost" data-ac="reset">↺ Đặt lại</button>
+      </div>
+    </div>
+    <div class="sim-canvas-box" style="flex:1 1 auto">
+      <canvas id="acCanvas"></canvas>
+    </div>
+    <div class="controls">
+      <div class="ctrl"><label>Biên độ U₀ <b><span id="acU0v">220</span> V</b></label>
+        <input type="range" id="acU0" min="40" max="400" step="5" value="220"></div>
+      <div class="ctrl"><label>Tần số f <b><span id="acFv">50</span> Hz</b></label>
+        <input type="range" id="acF" min="10" max="120" step="1" value="50"></div>
+      <div class="ctrl"><label>Biên độ I₀ <b><span id="acI0v">2.0</span> A</b></label>
+        <input type="range" id="acI0" min="0.5" max="6" step="0.1" value="2"></div>
+      <div class="ctrl"><label>Độ lệch pha Δφ <b><span id="acPhv">0</span>°</b></label>
+        <input type="range" id="acPh" min="-180" max="180" step="5" value="0"></div>
+    </div>
+    <div class="readout">
+      <div class="ro"><div class="l">U hiệu dụng</div><div class="v" id="acUrms">155.6 V</div></div>
+      <div class="ro"><div class="l">I hiệu dụng</div><div class="v" id="acIrms">1.41 A</div></div>
+      <div class="ro"><div class="l">Chu kỳ T</div><div class="v" id="acT">0.020 s</div></div>
+      <div class="ro"><div class="l">u(t) tức thời</div><div class="v" id="acUt">—</div></div>
+      <div class="ro"><div class="l">i(t) tức thời</div><div class="v" id="acIt">—</div></div>
+      <div class="ro state"><div class="l">Quan hệ pha</div><div class="v" id="acState">Cùng pha</div></div>
+    </div>
+  </div>`
+},
+{
+  id: "example2",
+  lesson: 2,
+  title: "Ví dụ minh họa",
+  notes: "Cho học sinh tự làm. Chú ý: u = 220√2 cos(100πt) → U₀ = 220√2, ω = 100π.",
+  html: () => `
+  <div class="slide-body">
+    <div class="eyebrow">Bài 2 · Ví dụ</div>
+    <h2 class="slide-h2">Ví dụ minh họa</h2>
+    <div class="card reveal" style="margin-top:.35em">
+      <p style="font-size:1em;color:var(--fg);line-height:1.6">
+        <b>Giả thiết:</b> Điện áp tức thời giữa hai đầu đoạn mạch:
+        <span class="formula" style="font-size:.92em;padding:.3em .7em">u = 220√2·cos(100πt) (V)</span>
+      </p>
+      <p style="margin-top:.5em">Tính: (a) giá trị hiệu dụng U; (b) tần số f và chu kỳ T; (c) giá trị tức thời tại t = 0.</p>
+    </div>
+    <div class="grid3 reveal d1" style="margin-top:.85em">
+      <div class="card glow">
+        <h3>(a) Giá trị hiệu dụng</h3>
+        <p>So sánh với u = U₀cos(ωt): <b>U₀ = 220√2 V</b></p>
+        <div class="formula" style="font-size:.95em;margin-top:.4em">U = U₀/√2 = 220 V</div>
+      </div>
+      <div class="card">
+        <h3>(b) Tần số &amp; chu kỳ</h3>
+        <p>ω = 100π rad/s</p>
+        <div class="formula" style="font-size:.95em;margin-top:.4em">f = ω/2π = 50 Hz</div>
+        <div class="formula" style="font-size:.95em;margin-top:.35em">T = 1/f = 0,02 s</div>
+      </div>
+      <div class="card">
+        <h3>(c) Giá trị tức thời</h3>
+        <p>Tại t = 0: cos(0) = 1</p>
+        <div class="formula" style="font-size:.95em;margin-top:.4em">u(0) = 220√2 ≈ 311 V</div>
+      </div>
+    </div>
+    <div class="note ok reveal d2" style="margin-top:.8em">
+      <b>Kết luận:</b> U = 220 V; f = 50 Hz; T = 0,02 s; u(0) ≈ 311 V. Điện áp cực đại lớn hơn giá trị hiệu dụng √2 lần.
+    </div>
+  </div>`
+},
+{
+  id: "video2",
+  lesson: 2,
+  title: "Thí nghiệm đèn LED với AC",
+  notes: "Video thí nghiệm LED nhấp nháy. Giải thích: dòng AC đổi chiều → LED (mắc ngược) nhấp nháy. Đây là bằng chứng trực quan của dòng xoay chiều.",
+  html: () => `
+  <div class="slide-body">
+    <div class="eyebrow">Bài 2 · Thí nghiệm minh họa</div>
+    <h2 class="slide-h2">Thí nghiệm: Đèn LED nhấp nháy với dòng AC</h2>
+    <div class="grid2 aa" style="margin-top:.5em;gap:1.4em">
+      <div class="reveal">
+        <div class="video-card" data-video="acLED" tabindex="0" role="button" aria-label="Xem video thí nghiệm đèn LED xoay chiều">
+          <div class="vthumb"></div>
+          <div class="play-btn">
+            <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          </div>
+          <div class="vlabel">
+            <span>Nhấn để phát video thí nghiệm</span>
+            <span class="tag">▶ YOUTUBE</span>
+          </div>
+        </div>
+        <div class="video-alt">
+          <a href="https://www.youtube.com/results?search_query=th%C3%AD+nghi%E1%BB%87m+d%C3%B2ng+%C4%91i%E1%BB%87n+xoay+chi%E1%BB%81u+%C4%91%C3%A8n+LED+cu%E1%BB%99n+d%C3%A2y" target="_blank" rel="noopener">🔍 Mở tìm kiếm YouTube</a>
+          <a href="https://vi.wikipedia.org/wiki/D%C3%B2ng_%C4%91i%E1%BB%87n_xoay_chi%E1%BB%81u" target="_blank" rel="noopener">📖 Đọc thêm</a>
+        </div>
+      </div>
+      <div class="reveal d2">
+        <div class="card glow">
+          <h3>Mô tả thí nghiệm</h3>
+          <p style="line-height:1.65">Cuộn dây A nối với nguồn xoay chiều 12V. Cuộn dây B đặt gần đó, hai đầu nối với đèn LED.</p>
+          <ul style="margin-top:.5em">
+            <li><b style="color:var(--cyan)">Khi bật nguồn AC:</b> đèn LED ở cuộn B <b>nhấp nháy</b> theo tần số dòng xoay chiều.</li>
+            <li><b style="color:var(--pink)">Nguyên nhân:</b> từ trường biến thiên của cuộn A cảm ứng sang cuộn B — xuất hiện suất điện động xoay chiều.</li>
+            <li><b style="color:var(--yellow)">LED nhấp nháy:</b> vì dòng điện đổi chiều, LED chỉ sáng khi dòng chạy đúng chiều thuận.</li>
+          </ul>
+        </div>
+        <div class="note ok" style="margin-top:.8em">
+          <b>Kết luận:</b> Hiện tượng cảm ứng từ giữa hai cuộn dây + dòng điện đổi chiều liên tục chứng tỏ nguồn là dòng xoay chiều.
+        </div>
+      </div>
+    </div>
+  </div>`
+},
+{
+  id: "quiz2",
+  lesson: 2,
+  title: "Câu hỏi ôn tập Bài 2",
+  notes: "Cho học sinh làm. Có thể cho thêm thời gian. Bấm đáp án để kiểm tra.",
+  html: () => `
+  <div class="slide-body">
+    <div class="eyebrow">Bài 2 · Ôn tập</div>
+    <h2 class="slide-h2">Câu hỏi ôn tập cuối bài</h2>
+    <div class="grid2 stagger" style="margin-top:.5em;gap:.9em">
+      <div class="card">
+        <div class="quiz-q" style="font-size:.92em">1. Dòng điện xoay chiều i = 4·cos(100πt) (A). Giá trị hiệu dụng là:</div>
+        <div class="quiz">
+          <button class="quiz-opt" data-correct="0"><span class="k">A</span><span>4 A</span></button>
+          <button class="quiz-opt" data-correct="1"><span class="k">B</span><span>2√2 A ≈ 2,83 A</span></button>
+          <button class="quiz-opt" data-correct="0"><span class="k">C</span><span>4√2 A</span></button>
+          <button class="quiz-opt" data-correct="0"><span class="k">D</span><span>2 A</span></button>
+        </div>
+        <div class="quiz-exp"><b>Giải thích:</b> I₀ = 4 A → I = I₀/√2 = 2√2 ≈ 2,83 A.</div>
+      </div>
+      <div class="card">
+        <div class="quiz-q" style="font-size:.92em">2. Điện áp u = U₀·cos(ωt + φ) có pha ban đầu là:</div>
+        <div class="quiz">
+          <button class="quiz-opt" data-correct="0"><span class="k">A</span><span>U₀</span></button>
+          <button class="quiz-opt" data-correct="0"><span class="k">B</span><span>ωt</span></button>
+          <button class="quiz-opt" data-correct="1"><span class="k">C</span><span>φ</span></button>
+          <button class="quiz-opt" data-correct="0"><span class="k">D</span><span>ω</span></button>
+        </div>
+        <div class="quiz-exp"><b>Giải thích:</b> Pha ban đầu là φ — giá trị của pha tại t = 0. Đại lượng (ωt + φ) là pha dao động tại thời điểm t.</div>
+      </div>
+    </div>
+    <div class="card reveal d3" style="margin-top:.8em">
+      <div class="quiz-q" style="font-size:.92em">3. Một bóng đèn ghi 220V – 50Hz. Giá trị cực đại của điện áp đặt vào đèn là:</div>
+      <div class="quiz">
+        <button class="quiz-opt" data-correct="0"><span class="k">A</span><span>U₀ = 220 V</span></button>
+        <button class="quiz-opt" data-correct="1"><span class="k">B</span><span>U₀ ≈ 311 V</span></button>
+        <button class="quiz-opt" data-correct="0"><span class="k">C</span><span>U₀ ≈ 155,6 V</span></button>
+        <button class="quiz-opt" data-correct="0"><span class="k">D</span><span>U₀ = 440 V</span></button>
+      </div>
+      <div class="quiz-exp"><b>Giải thích:</b> 220 V là giá trị hiệu dụng. U₀ = U·√2 = 220·√2 ≈ 311 V.</div>
+    </div>
+  </div>`
+},
+{
+  id: "summary",
+  lesson: 2,
+  title: "Tổng kết toàn bài",
+  notes: "Bảng công thức tổng hợp. Cho học sinh chép lại. Nhấn mạnh mối liên hệ giữa hai bài.",
+  html: () => `
+  <div class="slide-body">
+    <div class="eyebrow">Tổng kết</div>
+    <h2 class="slide-h2">Bảng công thức cần ghi nhớ</h2>
+    <div class="grid2" style="margin-top:.5em;gap:.7em">
+      <div class="card" style="padding:.7em .9em">
+        <h3 style="color:var(--cyan);font-size:.92em">Bài 1 — Cảm ứng điện từ</h3>
+        <table class="cmp" style="font-size:.8em">
+          <tbody>
+            <tr><td>Từ thông</td><td style="text-align:right;color:var(--fg);font-weight:700">Φ = B·S·cos α</td></tr>
+            <tr><td>Suất điện động cảm ứng</td><td style="text-align:right;color:var(--fg);font-weight:700">e = −N·ΔΦ/Δt</td></tr>
+            <tr><td>Độ lớn</td><td style="text-align:right;color:var(--fg);font-weight:700">|e| = N·|ΔΦ|/Δt</td></tr>
+            <tr><td>Đơn vị từ thông</td><td style="text-align:right;color:var(--fg);font-weight:700">Wb (Vê-be)</td></tr>
+            <tr><td>Định luật Lenz</td><td style="text-align:right;color:var(--fg);font-weight:700">Dòng cảm ứng chống lại biến thiên Φ</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card" style="padding:.7em .9em">
+        <h3 style="color:var(--pink);font-size:.92em">Bài 2 — Dòng điện xoay chiều</h3>
+        <table class="cmp" style="font-size:.8em">
+          <tbody>
+            <tr><td>Từ thông</td><td style="text-align:right;color:var(--fg);font-weight:700">Φ = NBS·cos(ωt + φ)</td></tr>
+            <tr><td>Suất điện động</td><td style="text-align:right;color:var(--fg);font-weight:700">e = E₀·sin(ωt + φ)</td></tr>
+            <tr><td>Biên độ sđđ</td><td style="text-align:right;color:var(--fg);font-weight:700">E₀ = NBSω</td></tr>
+            <tr><td>Dòng – áp tức thời</td><td style="text-align:right;color:var(--fg);font-weight:700">i = I₀cos(ωt+φᵢ); u = U₀cos(ωt+φᵤ)</td></tr>
+            <tr><td>Giá trị hiệu dụng</td><td style="text-align:right;color:var(--fg);font-weight:700">I = I₀/√2 ; U = U₀/√2</td></tr>
+            <tr><td>Công suất trung bình</td><td style="text-align:right;color:var(--yellow);font-weight:700">P<sub>tb</sub> = R·I²</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="note ok reveal d2" style="margin-top:.8em">
+      <b>Mối liên hệ:</b> Dòng xoay chiều là ứng dụng trực tiếp của hiện tượng cảm ứng từ — khi khung dây quay trong từ trường, từ thông biến thiên tuần hoàn sinh ra suất điện động xoay chiều. Đây là nguyên lý của mọi máy phát điện hiện đại.
+    </div>
+  </div>`
+},
+{
+  id: "end",
+  lesson: 2,
+  title: "Kết thúc",
+  notes: "Cảm ơn lớp. Nhắc lại 3 điểm cốt lõi và dặn dò bài tập.",
+  html: () => `
+  <div class="slide-body center" style="text-align:center">
+    <div class="cover-badge">Hoàn thành bài học</div>
+    <h1 class="slide-title" style="margin-top:.4em">Cảm ơn đã theo dõi!</h1>
+    <p class="lead" style="margin-top:.6em;max-width:58ch">
+      Ba điểm cốt lõi: <b style="color:var(--cyan)">từ thông biến thiên</b> sinh ra suất điện động cảm ứng ·
+      <b style="color:var(--purple)">định luật Faraday – Lenz</b> xác định độ lớn và chiều ·
+      <b style="color:var(--yellow)">khung dây quay trong từ trường</b> tạo ra dòng xoay chiều.
+    </p>
+    <div style="display:flex;gap:.6em;flex-wrap:wrap;justify-content:center;margin-top:1.6em">
+      <span class="chip">Φ = B·S·cos α</span>
+      <span class="chip p">e = −N·ΔΦ/Δt</span>
+      <span class="chip y">I = I₀/√2</span>
+    </div>
+    <div style="margin-top:2em;font-size:.8em;color:var(--muted)">
+      Nhấn <b style="color:var(--cyan)">Home</b> để quay về đầu · <b style="color:var(--cyan)">M</b> để mở mục lục
+    </div>
+  </div>`
+}
+];
+
+/* ============================================================
+   BUILD DOM
+   ============================================================ */
+const stage = $("#stage");
+let slideEls = [];
+
+function buildSlides() {
+  stage.innerHTML = "";
+  slideEls = SLIDES.map((s, i) => {
+    const el = document.createElement("section");
+    el.className = "slide";
+    el.dataset.index = i;
+    el.dataset.id = s.id;
+    el.dataset.lesson = s.lesson;
+    el.setAttribute("aria-label", s.title);
+    el.innerHTML = s.html();
+    stage.appendChild(el);
+    return el;
+  });
+}
+
+function buildThumbs() {
+  const box = $("#thumbs");
+  box.innerHTML = "";
+  let lastLesson = 0;
+  SLIDES.forEach((s, i) => {
+    if (s.lesson !== lastLesson) {
+      const sep = document.createElement("div");
+      sep.className = "thumb-sep";
+      sep.textContent = "BÀI " + s.lesson;
+      box.appendChild(sep);
+      lastLesson = s.lesson;
+    }
+    const b = document.createElement("button");
+    b.className = "thumb l" + s.lesson;
+    b.dataset.go = i;
+    b.innerHTML = `<span class="tn">${i + 1}</span><span>${s.title}</span>`;
+    box.appendChild(b);
+  });
+}
+
+/* ============================================================
+   NAVIGATION
+   ============================================================ */
+function activeSlideEl() { return slideEls[State.current]; }
+function getReveals(el) { return $$(".reveal", el).filter(n => !n.classList.contains("shown")); }
+function getShownReveals(el) { return $$(".reveal.shown", el); }
+
+function updateChrome() {
+  const cur = SLIDES[State.current];
+  $("#counter").innerHTML = `<b>${State.current + 1}</b> / ${SLIDES.length}`;
+  $("#progress").style.width = ((State.current + 1) / SLIDES.length * 100) + "%";
+  $("#slideTitleMini").textContent = cur.title;
+  $$(".thumb").forEach((t, i) => t.classList.toggle("active", +t.dataset.go === State.current));
+  $("#btnPrev").disabled = State.current === 0;
+  $("#btnNext").disabled = State.current === SLIDES.length - 1;
+
+  const tag = $("#lessonTag");
+  if (tag) {
+    tag.textContent = "BÀI " + cur.lesson;
+    tag.className = "lesson-tag l" + cur.lesson;
+  }
+
+  const id = cur.id;
+  const saved = Store.data.notes[id] || "";
+  $("#noteInput").value = saved;
+  $("#pNote").textContent = saved || cur.notes || "(chưa có ghi chú)";
+  $("#pCur").textContent = (State.current + 1) + " · " + cur.title;
+  $("#pNext").textContent = SLIDES[State.current + 1]
+    ? (State.current + 2) + " · " + SLIDES[State.current + 1].title
+    : "— Hết bài —";
+}
+
+function goTo(index, opts = {}) {
+  if (State.busy && !opts.force) return;
+  const target = clamp(index, 0, SLIDES.length - 1);
+  if (target === State.current && !opts.force) return;
+
+  State.busy = true;
+  const prevEl = slideEls[State.current];
+  const nextEl = slideEls[target];
+
+  prevEl.classList.remove("active");
+  State.current = target;
+  nextEl.classList.add("active");
+
+  if (opts.fresh !== false) {
+    $$(".reveal", nextEl).forEach(n => n.classList.remove("shown"));
+  }
+
+  updateChrome();
+  Sound.play(520, 0.045, "sine", 0.05);
+
+  const dur = State.fxOn ? State.speed * 1000 : 0;
+  setTimeout(() => { State.busy = false; }, Math.max(60, dur));
+  Store.data.settings.lastSlide = target;
+  Store.save();
+}
+
+function next() {
+  const el = activeSlideEl();
+  const pending = getReveals(el);
+  if (pending.length) {
+    pending[0].classList.add("shown");
+    Sound.play(780, 0.04, "triangle", 0.045);
+    return;
+  }
+  if (State.current < SLIDES.length - 1) goTo(State.current + 1);
+}
+
+function prev() {
+  const el = activeSlideEl();
+  const shown = getShownReveals(el);
+  if (shown.length) {
+    shown[shown.length - 1].classList.remove("shown");
+    Sound.play(400, 0.04, "triangle", 0.045);
+    return;
+  }
+  if (State.current > 0) goTo(State.current - 1, { fresh: false });
+}
+
+/* ============================================================
+   FULLSCREEN
+   ============================================================ */
+async function toggleFullscreen() {
+  try {
+    if (!document.fullscreenElement) {
+      await document.documentElement.requestFullscreen();
+      toast("Đã bật toàn màn hình (Esc để thoát)");
+    } else {
+      await document.exitFullscreen();
+    }
+  } catch (err) {
+    toast("Trình duyệt từ chối quyền toàn màn hình. Bạn vẫn có thể dùng F11.");
+  }
+}
+
+/* ============================================================
+   SETTINGS
+   ============================================================ */
+function applySettings() {
+  document.body.dataset.theme = State.theme || "dark";
+  document.documentElement.style.setProperty("--dur", State.speed + "s");
+  document.documentElement.style.setProperty("--fs", State.fontScale);
+  document.body.classList.toggle("no-fx", !State.fxOn);
+  document.body.classList.remove("tx-slide", "tx-zoom", "tx-flip", "tx-push");
+  if (State.transition !== "fade") document.body.classList.add("tx-" + State.transition);
+
+  const t = $("#setTheme"); if (t) t.value = State.theme;
+  const tr = $("#setTransition"); if (tr) tr.value = State.transition;
+  const sp = $("#setSpeed"); if (sp) sp.value = String(State.speed);
+  const fs = $("#setFont"); if (fs) fs.value = String(State.fontScale);
+  $("#setFx")?.classList.toggle("on", State.fxOn);
+  $("#setSound")?.classList.toggle("on", State.soundOn);
+  $("#setSave")?.classList.toggle("on", State.autoSave);
+  Sound.setEnabled(State.soundOn);
+}
+
+function saveSettings() {
+  Store.data.settings = {
+    theme: State.theme,
+    transition: State.transition,
+    speed: State.speed,
+    fontScale: State.fontScale,
+    fxOn: State.fxOn,
+    soundOn: State.soundOn,
+    autoSave: State.autoSave,
+    lastSlide: State.current
+  };
+  Store.save();
+}
+
+function loadSettings() {
+  const s = Store.data.settings || {};
+  State.theme = s.theme || "dark";
+  State.transition = s.transition || "fade";
+  State.speed = typeof s.speed === "number" ? s.speed : 0.55;
+  State.fontScale = typeof s.fontScale === "number" ? s.fontScale : 1;
+  State.fxOn = s.fxOn !== false;
+  State.soundOn = s.soundOn === true;
+  State.autoSave = s.autoSave !== false;
+}
+
+/* ============================================================
+   PEN / LASER / SPOT
+   ============================================================ */
+const drawLayer = $("#drawLayer");
+const laserLayer = $("#laserLayer");
+const spotLayer = $("#spotLayer");
+let dctx = null, lctx = null;
+let strokes = [];
+let drawing = false;
+let currentStroke = null;
+let penColor = "#35D9FF";
+let penSize = 3;
+let laserPos = { x: -100, y: -100 };
+
+function setupOverlayCanvases() {
+  const dpr = window.devicePixelRatio || 1;
+  [drawLayer, laserLayer].forEach(c => {
+    c.width = Math.round(window.innerWidth * dpr);
+    c.height = Math.round(window.innerHeight * dpr);
+    c.style.width = window.innerWidth + "px";
+    c.style.height = window.innerHeight + "px";
+  });
+  dctx = drawLayer.getContext("2d");
+  lctx = laserLayer.getContext("2d");
+  dctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  lctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  redrawStrokes();
+}
+function redrawStrokes() {
+  if (!dctx) return;
+  dctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+  dctx.lineCap = "round"; dctx.lineJoin = "round";
+  for (const s of strokes) {
+    if (s.length < 2) continue;
+    dctx.beginPath();
+    dctx.strokeStyle = s[0].color;
+    dctx.lineWidth = s[0].size;
+    dctx.moveTo(s[0].x, s[0].y);
+    for (let i = 1; i < s.length; i++) dctx.lineTo(s[i].x, s[i].y);
+    dctx.stroke();
+  }
+}
+function enablePen(on) {
+  State.penOn = on;
+  drawLayer.classList.toggle("on", on);
+  $("#btnPen").classList.toggle("on", on);
+  if (on) { enableLaser(false); enableSpot(false); toast("Bút vẽ: kéo chuột để vẽ. Nhấn E để tẩy, X để xóa hết."); }
+}
+drawLayer.addEventListener("pointerdown", e => {
+  if (!State.penOn) return;
+  drawing = true;
+  drawLayer.setPointerCapture?.(e.pointerId);
+  currentStroke = [{ x: e.clientX, y: e.clientY, color: penColor, size: penSize }];
+  strokes.push(currentStroke);
+  redrawStrokes();
+});
+drawLayer.addEventListener("pointermove", e => {
+  if (!drawing || !State.penOn) return;
+  currentStroke.push({ x: e.clientX, y: e.clientY, color: penColor, size: penSize });
+  if (dctx && currentStroke.length >= 2) {
+    const a = currentStroke[currentStroke.length - 2];
+    const b = currentStroke[currentStroke.length - 1];
+    dctx.beginPath();
+    dctx.strokeStyle = penColor;
+    dctx.lineWidth = penSize;
+    dctx.lineCap = "round";
+    dctx.moveTo(a.x, a.y); dctx.lineTo(b.x, b.y);
+    dctx.stroke();
+  }
+});
+drawLayer.addEventListener("pointerup", () => { drawing = false; currentStroke = null; });
+drawLayer.addEventListener("pointercancel", () => { drawing = false; currentStroke = null; });
+
+function enableLaser(on) {
+  State.laserOn = on;
+  $("#btnLaser").classList.toggle("on", on);
+  if (on) { enablePen(false); enableSpot(false); toast("Bút laser: di chuyển chuột để chỉ."); }
+  if (!on && lctx) lctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+}
+function enableSpot(on) {
+  State.spotOn = on;
+  spotLayer.classList.toggle("on", on);
+  $("#btnSpot").classList.toggle("on", on);
+  if (on) {
+    enablePen(false); enableLaser(false);
+    spotLayer.style.background = `radial-gradient(circle 120px at 50% 50%, transparent 0%, transparent 55%, rgba(4,10,22,.86) 100%)`;
+    toast("Đèn rọi: di chuyển chuột để làm nổi bật vùng nội dung.");
+  } else {
+    spotLayer.style.background = "";
+  }
+}
+
+window.addEventListener("pointermove", e => {
+  laserPos.x = e.clientX;
+  laserPos.y = e.clientY;
+  if (State.spotOn) {
+    spotLayer.style.background =
+      `radial-gradient(circle 120px at ${e.clientX}px ${e.clientY}px, transparent 0%, transparent 55%, rgba(4,10,22,.86) 100%)`;
+  }
+});
+
+function laserLoopOnce() {
+  if (!lctx) return;
+  lctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+  if (State.laserOn) {
+    const { x, y } = laserPos;
+    const g = lctx.createRadialGradient(x, y, 0, x, y, 24);
+    g.addColorStop(0, "rgba(255,79,203,.95)");
+    g.addColorStop(.4, "rgba(255,79,203,.45)");
+    g.addColorStop(1, "rgba(255,79,203,0)");
+    lctx.fillStyle = g;
+    lctx.beginPath(); lctx.arc(x, y, 24, 0, Math.PI * 2); lctx.fill();
+    lctx.fillStyle = "#fff";
+    lctx.beginPath(); lctx.arc(x, y, 3, 0, Math.PI * 2); lctx.fill();
+  }
+}
+
+/* ============================================================
+   VIDEO MODAL
+   ============================================================ */
+function openVideo(key) {
+  const v = VIDEOS[key];
+  if (!v) return;
+  const modal = $("#videoModal");
+  const iframe = $("#videoIframe");
+  const title = $("#videoTitle");
+  const link = $("#videoSearchLink");
+  iframe.src = "https://www.youtube.com/embed/" + v.id + "?autoplay=1&rel=0";
+  title.textContent = v.title;
+  link.href = "https://www.youtube.com/results?search_query=" + encodeURIComponent(v.search);
+  modal.classList.add("open");
+  Sound.play(660, 0.08);
+}
+function closeVideo() {
+  const modal = $("#videoModal");
+  iframe_src_reset();
+  modal.classList.remove("open");
+}
+function iframe_src_reset() {
+  const iframe = $("#videoIframe");
+  if (iframe) iframe.src = "about:blank";
+}
+
+/* ============================================================
+   CONFETTI
+   ============================================================ */
+const confettiCanvas = $("#confettiLayer");
+let confettiParticles = [];
+let confettiActive = false;
+function resizeConfetti() {
+  const dpr = window.devicePixelRatio || 1;
+  confettiCanvas.width = window.innerWidth * dpr;
+  confettiCanvas.height = window.innerHeight * dpr;
+  confettiCanvas.style.width = window.innerWidth + "px";
+  confettiCanvas.style.height = window.innerHeight + "px";
+  confettiCanvas.getContext("2d").setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+function launchConfetti() {
+  resizeConfetti();
+  const colors = ["#35D9FF", "#8957FF", "#FF4FCB", "#FFD166", "#4AE68B"];
+  confettiParticles = [];
+  for (let i = 0; i < 90; i++) {
+    confettiParticles.push({
+      x: window.innerWidth / 2 + (Math.random() - 0.5) * 200,
+      y: window.innerHeight / 3,
+      vx: (Math.random() - 0.5) * 12,
+      vy: -Math.random() * 10 - 3,
+      size: 6 + Math.random() * 8,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      rot: Math.random() * Math.PI,
+      vr: (Math.random() - 0.5) * 0.3,
+      life: 0,
+      maxLife: 90 + Math.random() * 40
+    });
+  }
+  if (!confettiActive) {
+    confettiActive = true;
+    requestAnimationFrame(confettiLoop);
+  }
+}
+function confettiLoop() {
+  const ctx = confettiCanvas.getContext("2d");
+  ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+  let alive = 0;
+  for (const p of confettiParticles) {
+    p.life++;
+    if (p.life > p.maxLife) continue;
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.35;
+    p.vx *= 0.99;
+    p.rot += p.vr;
+    const alpha = 1 - p.life / p.maxLife;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = p.color;
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.rot);
+    ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
+    ctx.restore();
+    alive++;
+  }
+  ctx.globalAlpha = 1;
+  if (alive > 0) {
+    requestAnimationFrame(confettiLoop);
+  } else {
+    confettiActive = false;
+    confettiParticles = [];
+  }
+}
+
+/* ============================================================
+   QUIZ HANDLER
+   ============================================================ */
+stage.addEventListener("click", (e) => {
+  const opt = e.target.closest(".quiz-opt");
+  if (!opt) return;
+  const quiz = opt.closest(".card");
+  if (!quiz) return;
+  const opts = $$(".quiz-opt", quiz);
+  if (opts.some(o => o.classList.contains("done"))) return;
+
+  const isCorrect = opt.dataset.correct === "1";
+  opts.forEach(o => o.classList.add("done"));
+  opt.classList.add(isCorrect ? "correct" : "wrong");
+  if (!isCorrect) {
+    const right = opts.find(o => o.dataset.correct === "1");
+    if (right) right.classList.add("correct");
+  }
+  const exp = quiz.querySelector(".quiz-exp");
+  if (exp) exp.classList.add("show");
+  Sound.play(isCorrect ? 880 : 220, 0.12, isCorrect ? "sine" : "sawtooth", 0.07);
+  if (isCorrect) {
+    launchConfetti();
+    toast("Chính xác! 🎉");
+  }
+});
+
+/* ============================================================
+   VIDEO CARD HANDLER
+   ============================================================ */
+stage.addEventListener("click", (e) => {
+  const card = e.target.closest(".video-card");
+  if (card) openVideo(card.dataset.video);
+});
+stage.addEventListener("keydown", (e) => {
+  const card = e.target.closest(".video-card");
+  if (card && (e.key === "Enter" || e.key === " ")) {
+    e.preventDefault();
+    openVideo(card.dataset.video);
+  }
+});
+
+/* ============================================================
+   SIMULATION
+   ============================================================ */
+const Sim = { ac: null };
+
+function setupCanvas(canvas) {
+  if (!canvas) return null;
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  const w = Math.max(1, rect.width);
+  const h = Math.max(1, rect.height);
+  canvas.width = Math.round(w * dpr);
+  canvas.height = Math.round(h * dpr);
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { ctx, w, h };
+}
+
+function initACSim() {
+  const canvas = $("#acCanvas");
+  if (!canvas) return;
+  const st = { U0: 220, f: 50, I0: 2, dphi: 0, t: 0, running: true };
+  const els = {
+    U0: $("#acU0"), f: $("#acF"), I0: $("#acI0"), ph: $("#acPh"),
+    U0v: $("#acU0v"), fv: $("#acFv"), I0v: $("#acI0v"), phv: $("#acPhv"),
+    Urms: $("#acUrms"), Irms: $("#acIrms"), T: $("#acT"),
+    Ut: $("#acUt"), It: $("#acIt"), state: $("#acState")
+  };
+  if (!els.U0) return;
+
+  const read = () => {
+    st.U0 = +els.U0.value;
+    st.f = +els.f.value;
+    st.I0 = +els.I0.value;
+    st.dphi = (+els.ph.value) * Math.PI / 180;
+    els.U0v.textContent = st.U0;
+    els.fv.textContent = st.f;
+    els.I0v.textContent = st.I0.toFixed(1);
+    els.phv.textContent = els.ph.value;
+    els.Urms.textContent = (st.U0 / Math.SQRT2).toFixed(1) + " V";
+    els.Irms.textContent = (st.I0 / Math.SQRT2).toFixed(2) + " A";
+    els.T.textContent = (1 / st.f).toFixed(4) + " s";
+    const deg = +els.ph.value;
+    els.state.textContent = deg > 1 ? "u sớm pha i" : deg < -1 ? "u trễ pha i" : "Cùng pha";
+  };
+  [els.U0, els.f, els.I0, els.ph].forEach(el => el.addEventListener("input", read));
+  read();
+
+  const api = {
+    st, els,
+    resize() { const c = setupCanvas(canvas); if (c) api.cv = c; },
+    play() { st.running = true; },
+    pause() { st.running = false; },
+    reset() {
+      st.t = 0; st.running = true;
+      if (els.U0) { els.U0.value = 220; els.f.value = 50; els.I0.value = 2; els.ph.value = 0; }
+      read();
+    },
+    tick(dt) { if (st.running) st.t += dt; },
+    draw() {
+      const c = api.cv; if (!c) return;
+      const { ctx, w, h } = c;
+      ctx.clearRect(0, 0, w, h);
+      const padL = 46, padR = 16, padT = 18, padB = 30;
+      const plotW = Math.max(10, w - padL - padR);
+      const plotH = Math.max(10, h - padT - padB);
+      const midY = padT + plotH / 2;
+
+      ctx.strokeStyle = "rgba(155,179,212,.14)";
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 4; i++) {
+        const y = padT + (plotH / 4) * i;
+        ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL + plotW, y); ctx.stroke();
+      }
+      for (let i = 0; i <= 8; i++) {
+        const x = padL + (plotW / 8) * i;
+        ctx.beginPath(); ctx.moveTo(x, padT); ctx.lineTo(x, padT + plotH); ctx.stroke();
+      }
+
+      ctx.strokeStyle = "rgba(155,179,212,.5)";
+      ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.moveTo(padL, midY); ctx.lineTo(padL + plotW, midY); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(padL, padT); ctx.lineTo(padL, padT + plotH); ctx.stroke();
+
+      ctx.fillStyle = "#9BB3D4";
+      ctx.font = "11px system-ui,sans-serif";
+      ctx.fillText("t", padL + plotW - 8, midY - 8);
+      ctx.fillText("u, i", padL - 36, padT + 12);
+
+      const T = 1 / st.f;
+      const win = 2 * T;
+      const t0 = st.t;
+      const xOf = (tau) => padL + ((tau - (t0 - win)) / win) * plotW;
+      const wU = 2 * Math.PI * st.f;
+      const uFn = (tau) => st.U0 * Math.cos(wU * tau);
+      const iFn = (tau) => st.I0 * Math.cos(wU * tau - st.dphi);
+
+      const yU = (v) => midY - (v / st.U0) * (plotH / 2) * 0.86;
+      const yI = (v) => midY - (v / st.I0) * (plotH / 2) * 0.86;
+
+      const drawCurve = (fn, color, yFn) => {
+        ctx.beginPath();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2.6;
+        ctx.lineJoin = "round";
+        let started = false;
+        for (let i = 0; i <= 240; i++) {
+          const tau = (t0 - win) + (win * i) / 240;
+          const x = xOf(tau);
+          if (x < padL - 2 || x > padL + plotW + 2) continue;
+          const y = yFn(fn(tau));
+          if (!started) { ctx.moveTo(x, y); started = true; }
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      };
+
+      ctx.setLineDash([5, 5]);
+      ctx.strokeStyle = "rgba(255,209,102,.45)";
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(padL, yU(st.U0)); ctx.lineTo(padL + plotW, yU(st.U0)); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(padL, yU(-st.U0)); ctx.lineTo(padL + plotW, yU(-st.U0)); ctx.stroke();
+      ctx.setLineDash([]);
+
+      drawCurve(uFn, "#FFD166", yU);
+      drawCurve(iFn, "#35D9FF", yI);
+
+      const uNow = uFn(t0), iNow = iFn(t0);
+      ctx.fillStyle = "#FFD166";
+      ctx.beginPath(); ctx.arc(padL + plotW, yU(uNow), 4.5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#35D9FF";
+      ctx.beginPath(); ctx.arc(padL + plotW, yI(iNow), 4.5, 0, Math.PI * 2); ctx.fill();
+
+      ctx.font = "bold 11px system-ui,sans-serif";
+      ctx.fillStyle = "#FFD166";
+      ctx.fillText("u(t)", padL + 8, padT + 14);
+      ctx.fillStyle = "#35D9FF";
+      ctx.fillText("i(t)", padL + 48, padT + 14);
+
+      if (els.Ut) els.Ut.textContent = uNow.toFixed(0) + " V";
+      if (els.It) els.It.textContent = iNow.toFixed(2) + " A";
+    }
+  };
+  api.resize();
+  Sim.ac = api;
+}
+
+/* Master animation */
+let lastTS = 0;
+function masterLoop(ts) {
+  const dt = lastTS ? Math.min(0.05, (ts - lastTS) / 1000) : 0;
+  lastTS = ts;
+  if (!document.hidden) {
+    const curId = SLIDES[State.current]?.id;
+    if (Sim.ac && curId === "sim-ac") {
+      Sim.ac.tick(dt);
+      Sim.ac.draw();
+    }
+    laserLoopOnce();
+  }
+  requestAnimationFrame(masterLoop);
+}
+
+/* ============================================================
+   EVENT WIRING
+   ============================================================ */
+function wireEvents() {
+  $("#btnNext").addEventListener("click", next);
+  $("#btnPrev").addEventListener("click", prev);
+
+  $("#btnMenu").addEventListener("click", () => $("#sidebar").classList.toggle("open"));
+  $("#closeSidebar").addEventListener("click", () => $("#sidebar").classList.remove("open"));
+  $("#thumbs").addEventListener("click", (e) => {
+    const b = e.target.closest(".thumb");
+    if (!b) return;
+    goTo(+b.dataset.go, { force: true });
+    $("#sidebar").classList.remove("open");
+  });
+
+  $("#btnFull").addEventListener("click", toggleFullscreen);
+
+  $("#btnPen").addEventListener("click", () => enablePen(!State.penOn));
+  $("#btnLaser").addEventListener("click", () => enableLaser(!State.laserOn));
+  $("#btnSpot").addEventListener("click", () => enableSpot(!State.spotOn));
+
+  $("#btnNotes").addEventListener("click", () => {
+    State.notesOpen = !State.notesOpen;
+    $("#notesBar").classList.toggle("open", State.notesOpen);
+    $("#btnNotes").classList.toggle("on", State.notesOpen);
+  });
+  $("#noteInput").addEventListener("input", (e) => {
+    const id = SLIDES[State.current].id;
+    Store.data.notes[id] = e.target.value;
+    $("#pNote").textContent = e.target.value || SLIDES[State.current].notes;
+    Store.save();
+  });
+
+  $("#btnPresenter").addEventListener("click", () => {
+    State.presenterOpen = !State.presenterOpen;
+    $("#presenterPanel").classList.toggle("open", State.presenterOpen);
+    $("#btnPresenter").classList.toggle("on", State.presenterOpen);
+  });
+
+  $("#btnSettings").addEventListener("click", () => {
+    $("#settingsPanel").classList.toggle("open");
+    $("#helpPanel").classList.remove("open");
+  });
+  $("#btnHelp").addEventListener("click", () => {
+    $("#helpPanel").classList.toggle("open");
+    $("#settingsPanel").classList.remove("open");
+  });
+  $$("[data-close]").forEach(b => {
+    b.addEventListener("click", () => $("#" + b.dataset.close).classList.remove("open"));
+  });
+
+  $("#setTheme").addEventListener("change", e => { State.theme = e.target.value; applySettings(); saveSettings(); });
+  $("#setTransition").addEventListener("change", e => { State.transition = e.target.value; applySettings(); saveSettings(); });
+  $("#setSpeed").addEventListener("change", e => { State.speed = parseFloat(e.target.value); applySettings(); saveSettings(); });
+  $("#setFont").addEventListener("change", e => { State.fontScale = parseFloat(e.target.value); applySettings(); saveSettings(); });
+  $("#setFx").addEventListener("click", () => { State.fxOn = !State.fxOn; applySettings(); saveSettings(); });
+  $("#setSound").addEventListener("click", () => {
+    State.soundOn = !State.soundOn; applySettings(); saveSettings();
+    if (State.soundOn) Sound.play(880, 0.08);
+  });
+  $("#setSave").addEventListener("click", () => {
+    State.autoSave = !State.autoSave; applySettings(); saveSettings();
+    toast(State.autoSave ? "Đã bật tự động lưu" : "Đã tắt tự động lưu");
+  });
+  $("#btnPrint").addEventListener("click", () => window.print());
+  $("#btnExportNotes").addEventListener("click", exportNotes);
+  $("#btnReset").addEventListener("click", () => {
+    State.theme = "dark"; State.transition = "fade"; State.speed = 0.55;
+    State.fontScale = 1; State.fxOn = true; State.soundOn = false; State.autoSave = true;
+    applySettings(); saveSettings();
+    toast("Đã khôi phục thiết lập mặc định");
+  });
+  $("#btnClearData").addEventListener("click", () => {
+    if (confirm("Xóa toàn bộ ghi chú và thiết lập đã lưu?")) {
+      Store.clear(); toast("Đã xóa dữ liệu lưu"); updateChrome();
+    }
+  });
+
+  // Video modal close
+  $("#videoClose").addEventListener("click", closeVideo);
+  $("#videoModal").addEventListener("click", (e) => {
+    if (e.target.id === "videoModal") closeVideo();
+  });
+
+  // Sim controls (delegated)
+  document.addEventListener("click", (e) => {
+    const acBtn = e.target.closest("[data-ac]");
+    if (acBtn && Sim.ac) {
+      const a = acBtn.dataset.ac;
+      if (a === "play") Sim.ac.play();
+      if (a === "pause") Sim.ac.pause();
+      if (a === "reset") Sim.ac.reset();
+    }
+  });
+
+  // Keyboard
+  window.addEventListener("keydown", (e) => {
+    const t = e.target;
+    const typing = t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable);
+    if (typing) return;
+
+    if ($("#videoModal").classList.contains("open")) {
+      if (e.key === "Escape") { e.preventDefault(); closeVideo(); }
+      return;
+    }
+
+    switch (e.key) {
+      case "ArrowRight": case " ":
+      case "PageDown": e.preventDefault(); next(); break;
+      case "Enter": e.preventDefault(); next(); break;
+      case "ArrowLeft": case "PageUp": e.preventDefault(); prev(); break;
+      case "Home": e.preventDefault(); goTo(0, { force: true }); break;
+      case "End": e.preventDefault(); goTo(SLIDES.length - 1, { force: true }); break;
+      case "Escape":
+        if ($("#sidebar").classList.contains("open")) { $("#sidebar").classList.remove("open"); break; }
+        if ($("#settingsPanel").classList.contains("open")) { $("#settingsPanel").classList.remove("open"); break; }
+        if ($("#helpPanel").classList.contains("open")) { $("#helpPanel").classList.remove("open"); break; }
+        if (State.penOn) { enablePen(false); break; }
+        if (State.laserOn) { enableLaser(false); break; }
+        if (State.spotOn) { enableSpot(false); break; }
+        if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+        break;
+      case "f": case "F": toggleFullscreen(); break;
+      case "m": case "M": $("#sidebar").classList.toggle("open"); break;
+      case "n": case "N": $("#btnNotes").click(); break;
+      case "r": case "R": $("#btnPresenter").click(); break;
+      case "p": case "P": enablePen(!State.penOn); break;
+      case "l": case "L": enableLaser(!State.laserOn); break;
+      case "h": case "H": enableSpot(!State.spotOn); break;
+      case "u": case "U": State.hideUI = !State.hideUI; document.body.classList.toggle("hide-ui", State.hideUI); break;
+      case "x": case "X": strokes = []; redrawStrokes(); toast("Đã xóa toàn bộ nét vẽ"); break;
+      case "?": $("#helpPanel").classList.toggle("open"); break;
+      case "+": case "=": State.fontScale = clamp(State.fontScale + 0.1, 0.7, 1.6); applySettings(); saveSettings(); break;
+      case "-": case "_": State.fontScale = clamp(State.fontScale - 0.1, 0.7, 1.6); applySettings(); saveSettings(); break;
+    }
+  });
+
+  // Swipe
+  let touchX = 0, touchY = 0, touchT = 0;
+  stage.addEventListener("touchstart", (e) => {
+    if (e.touches.length !== 1) return;
+    touchX = e.touches[0].clientX;
+    touchY = e.touches[0].clientY;
+    touchT = Date.now();
+  }, { passive: true });
+  stage.addEventListener("touchend", (e) => {
+    if (!e.changedTouches.length) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    const dy = e.changedTouches[0].clientY - touchY;
+    if (Date.now() - touchT > 700) return;
+    if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy)) {
+      if (dx < 0) next(); else prev();
+    }
+  }, { passive: true });
+
+  // Resize
+  let rzT = 0;
+  window.addEventListener("resize", () => {
+    clearTimeout(rzT);
+    rzT = setTimeout(() => {
+      setupOverlayCanvases();
+      resizeConfetti();
+      if (Sim.ac) Sim.ac.resize();
+    }, 180);
+  });
+
+  window.addEventListener("beforeprint", () => {
+    $$(".reveal").forEach(r => r.classList.add("shown"));
+  });
+
+  // Presenter timer buttons
+  $("#pToggle").addEventListener("click", () => {
+    Timer.running = !Timer.running;
+    $("#pToggle").textContent = Timer.running ? "Tạm dừng" : "Tiếp tục";
+    if (Timer.running) { Timer._last = 0; Timer.tick(); }
+  });
+  $("#pReset").addEventListener("click", () => Timer.reset());
+}
+
+/* Erase strokes */
+window.addEventListener("click", (e) => {
+  if (!State.penOn || !erasing) return;
+  eraseAtPoint(e.clientX, e.clientY);
+});
+let erasing = false;
+
+/* ============================================================
+   EXPORT NOTES
+   ============================================================ */
+function exportNotes() {
+  let out = "GHI CHÚ BÀI THUYẾT TRÌNH\n";
+  out += "Bài 1: Hiện tượng cảm ứng điện từ\n";
+  out += "Bài 2: Dòng điện xoay chiều\n";
+  out += "=".repeat(64) + "\n\n";
+  SLIDES.forEach((s, i) => {
+    const n = Store.data.notes[s.id];
+    out += `[${i + 1}] (Bài ${s.lesson}) ${s.title}\n`;
+    out += `    ${(n || s.notes || "(chưa có ghi chú)")}\n\n`;
+  });
+  out += "=".repeat(64) + "\n";
+  out += "BẢNG CÔNG THỨC CẦN NHỚ\n\n";
+  out += "BÀI 1 — CẢM ỨNG ĐIỆN TỪ:\n";
+  out += "  Φ = B·S·cos α\n";
+  out += "  e = −N·ΔΦ/Δt\n";
+  out += "  |e| = N·|ΔΦ|/Δt\n\n";
+  out += "BÀI 2 — DÒNG ĐIỆN XOAY CHIỀU:\n";
+  out += "  Φ = NBS·cos(ωt + φ)\n";
+  out += "  e = E₀·sin(ωt + φ);  E₀ = NBSω\n";
+  out += "  i = I₀cos(ωt+φᵢ);  u = U₀cos(ωt+φᵤ)\n";
+  out += "  Δφ = φᵤ − φᵢ\n";
+  out += "  I = I₀/√2;  U = U₀/√2\n";
+  out += "  P_tb = R·I²\n";
+
+  try {
+    const blob = new Blob([out], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "ghi-chu-bai-giang-dien-tu-hoc.txt";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+    toast("Đã xuất file ghi chú (.txt)");
+  } catch (err) {
+    toast("Không thể xuất file trong trình duyệt này");
+  }
+}
+
+/* ============================================================
+   TIMER
+   ============================================================ */
+const Timer = {
+  sec: 0, running: false,
+  start() { if (!this.running) { this.running = true; this.tick(); } },
+  pause() { this.running = false; },
+  reset() { this.sec = 0; this.render(); },
+  tick() {
+    if (!this.running) return;
+    const now = performance.now();
+    if (!this._last) this._last = now;
+    const d = (now - this._last) / 1000;
+    if (d >= 1) { this.sec += Math.floor(d); this._last = now; this.render(); }
+    requestAnimationFrame(() => this.tick());
+  },
+  render() {
+    const m = String(Math.floor(this.sec / 60)).padStart(2, "0");
+    const s = String(this.sec % 60).padStart(2, "0");
+    const t = m + ":" + s;
+    const c = $("#clock"); if (c) c.textContent = t;
+    const p = $("#ptimer"); if (p) p.textContent = t;
+  }
+};
+Timer.start();
+
+/* ============================================================
+   INIT
+   ============================================================ */
+function init() {
+  Store.load();
+  loadSettings();
+  applySettings();
+  buildSlides();
+  buildThumbs();
+  setupOverlayCanvases();
+  resizeConfetti();
+  wireEvents();
+  initACSim();
+
+  const last = Store.data.settings.lastSlide;
+  const start = Number.isInteger(last) ? clamp(last, 0, SLIDES.length - 1) : 0;
+  slideEls.forEach((el, i) => el.classList.toggle("active", i === start));
+  State.current = start;
+  updateChrome();
+
+  setTimeout(() => {
+    $$(".reveal", slideEls[start]).forEach(r => r.classList.add("shown"));
+  }, 200);
+
+  requestAnimationFrame(masterLoop);
+  setTimeout(() => { State.busy = false; }, 400);
+
+  console.log("%cBài giảng đã sẵn sàng", "color:#35D9FF;font-weight:bold;font-size:14px");
+  console.log("Tổng số slide:", SLIDES.length);
+}
+
+document.addEventListener("DOMContentLoaded", init);
+</script>
+</body>
+</html>
